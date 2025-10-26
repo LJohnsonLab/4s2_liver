@@ -245,14 +245,14 @@ significant_genes_female |>
 
 #### Common DEGs in males and females
 
-Differential expression analysis comparing Cre-AAV and GFP control groups in liver identified a large number of significantly altered transcripts (FDR < 0.01, |log₂FC| > 1). To focus on robust and biologically relevant signals, we intersected DEGs detected in both male and female mice. 
+There were `r nrow(common_degs_df)` common DEGs shared in male and females. 
 
 ```{r}
 common_degs <- intersect(significant_genes_male$gene, significant_genes_female$gene)
 common_degs_df <- data.frame(gene = common_degs)  
 ```
 
-There were `r nrow(common_degs_df)` common DEGs shared in male and females. 
+
 
 ```{r}
 

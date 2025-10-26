@@ -1,0 +1,120 @@
+---
+title: "Mice by group and batch"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+library(compareGroups)
+```
+
+```{r}
+#| eval: false
+
+#### gene expression ####
+
+id2 <- read_csv("data/ID_batch2.csv") |> 
+    mutate(sample = paste(tolower(Tissue),mouse,sep = "_")) |>
+    filter(batch ==1)
+
+id1 <- read_csv("data/ID_batch1.csv") |> 
+    mutate(sample = paste(tolower(Tissue),mouse,sep = "_")) |> 
+    filter(sampleID%in% id2$sampleID)
+
+
+human_salmon1 <- read_delim("data/salmon.merged.gene_counts_human_batch1.tsv", delim = "\t") |> 
+    filter(gene_name == "APOE") |> 
+    select(all_of(id1$sampleID)) |> 
+    rename(setNames(id1$sampleID, id1$sample)) 
+    
+
+id2_only <- read_csv("data/ID_batch2_only.csv") |> 
+    mutate(sample = paste(tolower(Tissue),mouse,sep = "_"))
+
+
+human_salmon2 <- read_delim("data/salmon.merged.gene_counts_human.tsv", delim = "\t") |> 
+    filter(gene_name == "APOE") |> 
+    rename(setNames(id2_only$sampleID, id2_only$sample))
+
+humanAPOE <- bind_cols(human_salmon1, human_salmon2)
+mouse_salmon <- read_delim("data/salmon.merged.gene_counts.tsv", delim = "\t") |> 
+    bind_rows(humanAPOE) |> 
+    # Remove any duplicate rows based on the 'gene_name' column, keeping the first occurrence.
+  distinct(gene_name, .keep_all = T) |> 
+  # Set the 'gene_name' column as the row names of the data frame. DESeq2 requires gene identifiers as row names.
+  column_to_rownames("gene_name") |> 
+  # Remove the 'gene_id' and 'M2' columns, which are not needed for this analysis.
+  select(-gene_id) |> 
+  # Convert all remaining columns (which are sample counts) to integer format, as required by DESeq2.
+  mutate(across(everything(), as.integer))
+
+
+# metadata table ####
+colData0 <- read_csv("data/ID_batch2.csv", na = "N/A")
+# Identify samples that are repeated across batches
+repeated_samples <- c("liver_MAD_271.2","liver_MAD_271","liver_SAD_326.2","liver_SAD_326","brain_MAD_271.2","brain_MAD_271","brain_SAD_326.2","brain_SAD_326")
+
+# Prepare the metadata for DESeq2 analysis
+colData <-  colData0 |> 
+    mutate(sample = paste0(tolower(Tissue),"_",mouse))  |> 
+    mutate(mice = ifelse(is.na(`Injection Age`), "TR", "switch"),
+    batch = batch |> as.factor()) |>
+    select(sample,Sex,Tissue,mice,`Injection Age`,`Takedown Age`,group = "Injection Group", batch) |> 
+    mutate(repeated = ifelse(sample %in% repeated_samples, sample, NA)) |> 
+    column_to_rownames("sample")
+
+
+colData <- colData [colnames(mouse_salmon), ]
+#identical(rownames(colData), colnames(mouse_salmon))
+
+#create a expressionSet objects
+steve <- SummarizedExperiment::SummarizedExperiment(
+    assays = list(counts = as.matrix(mouse_salmon)),
+    colData = colData)
+
+saveRDS(steve, file = "data/20251020-steve_expressionSet.rds")
+
+e2e4switch <- steve[,steve$mice == "switch"]
+saveRDS(e2e4switch, file = "data/20251020-e2e4switch_expressionSet.rds")
+
+```
+
+```{r}
+steve <- readRDS("data/20251020-steve_expressionSet.rds")
+colData <- as.data.frame(SummarizedExperiment::colData(steve))
+```
+
+## Switch mice distribution across batches
+
+Batch 1 included only GFP control mice, while Batch 2 contained both GFP controls and Cre-AAV–treated animals. Although tissue and sex distribution was balanced within each batch (50 % brain and 50 % liver for both sexes), the absence of Cre-AAV samples in Batch 1 creates a clear batch–treatment confounding.
+
+```{r}
+
+c1 <- compareGroups(group ~ Tissue, colData, subset = mice == "switch" & Sex =="Male")
+t1 <- createTable(c1, show.p.overall = FALSE)
+st1 <- strataTable(t1,"batch")
+export2md(st1, caption = "Male switch mice ")
+#####
+c1 <- compareGroups(group ~ Tissue, colData, subset = mice == "switch" & Sex =="Female")
+t1 <- createTable(c1, show.p.overall = FALSE)
+st1 <- strataTable(t1,"batch")
+export2md(st1, caption = "Female switch mice ")
+
+```
+
+## TR mice
+
+All TR mice were male and processed in batch 2. The cohort included three animals per genotype (E2/E2, E3/E3, and E4/E4), with both liver and brain collected from the same individuals. Because all TR samples belong to a single batch, there is no internal batch variation, but comparisons with switch mice are affected by a strong batch effect since the TR cohort was entirely processed separately.
+
+```{r}
+
+c1 <- compareGroups(group ~  Tissue , colData, subset = mice == "TR")
+t1 <- createTable(c1, show.p.overall = FALSE)
+export2md(t1, caption = "TR mice (all male, all in batch 2) ")
+
+```

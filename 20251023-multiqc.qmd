@@ -1,0 +1,55 @@
+---
+title: "RNAseq Data Processing and Quality Control"
+format: html
+execute: 
+  echo: false
+---
+
+## nf-core/rnaseq Pipeline Execution
+
+Raw paired-end RNA-seq reads (2 × 150 bp), produced by NOVOGENE, were processed using the **nf-core/rnaseq** pipeline (v3.19.0; Ewels *et al.*, 2020) executed with **Nextflow v24.10.4** (Di Tommaso *et al.*, 2017) under **Singularity** for full reproducibility on the Morgan Computing Core (University of Kentucky, UKY). The pipeline integrates widely used bioinformatics tools distributed through the Bioconda (Grüning *et al.*, 2018) and Biocontainers (da Veiga Leprevost *et al.*, 2017) frameworks.
+
+```
+nextflow run nf-core/rnaseq \
+  --input sample_sheet_batch1_batch2.csv \
+  --outdir results_mouse \
+  --aligner star_salmon \
+  --fasta Mus_musculus.GRCm39.dna.primary_assembly.fa.gz \
+  --gtf Mus_musculus.GRCm39.114.gtf.gz \
+  --skip_markduplicates --igenomes_ignore \
+  -profile singularity
+```
+
+All the nextsteps were performed by the above pipeline:
+
+Adapter and low-quality base trimming were performed with **Trim Galore v0.6.10** (using **Cutadapt v4.9**), and read quality was assessed pre- and post-trimming with **FastQC v0.12.1**. Sequence duplication rates were inspected using **DupRadar v1.32.0** to evaluate library complexity.
+
+High-quality reads were aligned to the *Mus musculus* reference genome (GRCm39, Ensembl release 114) with **STAR v2.7.11b**, generating coordinate-sorted BAM files via **samtools v1.21**. Alignment metrics and mapping statistics were summarized with **Qualimap v2.3** and **RSeQC v5.0.2** modules (read distribution, inner distance, splice-junction annotation and saturation, and strandedness inference).
+
+Transcript-level quantification was performed with **Salmon v1.10.3**, and gene-level counts were derived using **featureCounts v2.0.6**. SummarizedExperiment and DESeq2 objects were generated in R (**Bioconductor SummarizedExperiment v1.32.0**, **DESeq2 v1.28.0**) to facilitate downstream normalization and variance-stabilized analyses.
+
+Comprehensive multi-module quality control reports were aggregated with **MultiQC v1.29**, which compiled outputs from FastQC, Cutadapt, STAR, Salmon, Qualimap, and RSeQC. 
+
+
+
+---
+
+## Results Summary
+
+A total of **62 paired-end RNA-seq samples** (31 liver and 31 brain) were successfully processed. Each library yielded **20–90 million paired reads** (mean ≈ 45 M).
+
+* **Read quality:** Mean Phred scores exceeded Q30 across all cycles, and < 0.05 % adapter contamination remained after trimming.
+* **Alignment performance:** Mapping rates were **85–97 %**, with **80–90 % properly paired** reads and a mean **error rate of ≈ 0.2 %**, indicating accurate and efficient genome alignment.
+* **Coverage metrics:** Average fragment length was ≈ 296 bp with a 5′–3′ bias ≈ 1.2, reflecting even transcript coverage.
+* **Library complexity:** Duplication rates remained < 2 % overall; rRNA content was < 2 %, confirming effective depletion.
+* **Transcript composition:** > 80 % of reads mapped to **exonic regions**, with minor intronic/intergenic signal typical of poly-A libraries.
+* **Splice junctions:** > 95 % of detected junctions matched annotated reference transcripts, and junction saturation curves plateaued, confirming adequate sequencing depth.
+* **Strandedness:** Both Salmon and RSeQC inferred **unstranded** orientation (≈ 50 % sense/antisense).
+* **Gene quantification:** A total of **23,000–25,000 genes** were detected per sample (CPM > 1 in at least 3 samples), with consistent library sizes and low variability across replicates.
+
+
+Collectively, these metrics demonstrate **high technical quality, minimal bias, and strong biological consistency** across the dataset. The processed count matrices were therefore considered suitable for downstream **differential expression and functional enrichment** analyses.
+
+---
+
+[Full MultiQC Report](data//multiqc_report.html){target="_blank" rel="noopener noreferrer"}

@@ -1,0 +1,113 @@
+---
+title: "PCA"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  message: false   
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(DESeq2)
+library(ggrepel)
+
+
+all_mice <- readRDS("data/20251020-steve_expressionSet.rds")
+
+```
+
+```{r}
+# Create DESeq2 dataset
+dds0 <- DESeqDataSet(all_mice,
+                        design = ~ 1 )
+# Filter out genes with low expression (at least 10 counts in 5 or more samples)
+keep <- rowSums(counts(dds0) >= 10) >= 5
+dds <- dds0[keep,]
+```
+
+## PCA switch mice
+
+Principal component analysis (PCA) of variance-stabilized RNA-seq counts from the switch cohort revealed that **tissue type** was the dominant driver of transcriptional variance. The first principal component (PC1), accounting for **98% of the total variance**, clearly separated **liver** and **brain** samples, indicating strong tissue-specific expression profiles. The second component (PC2), explaining about **1% of the variance**, captured minor within-tissue variability associated primarily with **sex**, with male and female samples forming partially distinct subclusters.
+
+No obvious outliers were detected, and samples from independent batches overlapped within each tissue cluster, suggesting **minimal batch-related effects**. Together, these data confirm that tissue identity overwhelmingly dominates the transcriptional landscape in the switch mice.
+
+### All mice
+
+```{r}
+#| fig-width: 6
+
+# Principal component analysis (PCA) based on variance-stabilized counts
+vsd_switch <- vst(dds[,dds$mice == "switch"], blind = FALSE)
+pca_switch <- plotPCA(vsd_switch, intgroup = c("Sex", "group", "Tissue","batch","repeated"), returnData = TRUE)
+percentVar_switch <- round(100 * attr(pca_switch, "percentVar"))
+
+# PCA plot with aesthetics
+ggplot(pca_switch, aes(PC1, PC2, color = Sex, shape = batch)) +
+  geom_point(alpha = 0.6, size= 3) +
+  xlab(paste0("PC1: ", percentVar_switch[1], "% variance")) +
+  scale_shape_manual(values=c(1,8)) +
+  ylab(paste0("PC2: ", percentVar_switch[2], "% variance")) +
+  theme_minimal()
+```
+
+### PCA by tissue and sex
+
+Within each tissue–sex subgroup, **Cre-AAV** and **GFP control** mice formed partially overlapping clusters, suggesting that the switch introduced **subtle transcriptomic changes relative to the global tissue effect**.
+
+Importantly, samples from **independent experimental batches** overlapped extensively, indicating that batch effects were minimal after normalization.
+
+```{r}
+#| fig-height: 7
+#| fig-width: 8
+ggplot(droplevels(pca_switch), aes(PC1, PC2, color = group.1, shape = batch, label = repeated)) +
+  geom_point( size= 3) +
+  geom_text_repel(na.rm =T) +
+  scale_shape_manual(values=c(1,8)) +
+  theme_minimal()+
+  facet_wrap(~ Tissue+Sex, scales = "free",ncol=2)
+```
+
+## PCA TR mice
+
+### All TR mice
+
+As occurred with switch mice, PCA of variance-stabilized RNA-seq counts from ApoE targeted-replacement (TR) mice revealed a strong separation of samples by **tissue type**, with **liver** and **brain** samples clearly segregating along the first principal component (PC1), which accounted for **98% of the total variance** .
+
+```{r}
+#| fig-width: 6
+# Principal component analysis (PCA) based on variance-stabilized counts
+vsd_TR <- vst(dds[,dds$mice == "TR"], blind = FALSE)
+pca_TR <- plotPCA(vsd_TR, intgroup = c("Sex", "group", "Tissue","batch","repeated"), returnData = TRUE)
+percentVar_TR <- round(100 * attr(pca_TR, "percentVar"))
+
+# PCA plot with aesthetics
+ggplot(pca_TR, aes(PC1, PC2, color = group.1, shape = Tissue)) +
+  geom_point(alpha = 0.6, size= 3) +
+  xlab(paste0("PC1: ", percentVar_switch[1], "% variance")) +
+  scale_shape_manual(values=c(1,8)) +
+  ylab(paste0("PC2: ", percentVar_switch[2], "% variance")) +
+  theme_minimal()
+```
+
+### PCA by tissue with possible outliers labeled
+
+Within the liver cluster, separation along the second principal component (PC2) distinguished **ApoE2/E2** mice from the **ApoE3/E3 and ApoE4/E4** groups . These data suggest that **ApoE2 expression has a more pronounced impact on liver transcriptomes** compared with the other ApoE isoforms, while tissue identity (liver vs. brain) remains the dominant source of variance across the dataset.
+
+```{r}
+#|fig-width: 8
+#|fig-height: 2
+
+ggplot(pca_TR |> 
+    mutate(out = ifelse(PC2< (-15) | PC2>15 ,name,NA)),
+     aes(PC1, PC2, color = group.1, label = out)) +
+  geom_point(alpha = 0.6, size= 3) +
+  xlab("PC1") +
+  scale_shape_manual(values=c(1,8)) +
+  ylab("PC2") +
+  geom_text_repel(na.rm =T, size =3)+
+  theme_minimal()+
+  facet_wrap(~ Tissue, scales = "free")
+```

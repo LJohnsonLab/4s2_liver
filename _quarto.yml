@@ -1,0 +1,36 @@
+project:
+  type: book
+  output-dir: docs
+
+book:
+  title: "4s2 in liver"
+  author: "Steve & Jose"
+  date: "10/23/2025"
+  chapters:
+    - index.qmd
+    - 20251020_methods.qmd
+    - 20251021_APOEexp.qmd
+    - part: "__BULK mRNAseq ANALYSIS__"
+      chapters:
+      - 20251023-multiqc.qmd
+    - part: "__4s2 mice__"
+      chapters:  
+      - 20251024-mrnaseq_analysis_design.qmd
+      - 20251023-mrnaseq-qc_pca.qmd
+      - 20251024-mrnaseq-switch_DE_analysis1.qmd
+      - 20251024-mrnaseq-switch_DE_analysis2.qmd
+      - 20251024-mrnaseq-switch_DE_analysis3.qmd
+    - references.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme:
+      - cosmo
+      - brand
+  pdf:
+    documentclass: scrreprt
+
+
+

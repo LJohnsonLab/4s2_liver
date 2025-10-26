@@ -1,0 +1,78 @@
+---
+title: "human APOE expression"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  message: false   
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(compareGroups)
+library(ggpubr)
+
+e2e4 <- readRDS("data/20251020-e2e4switch_expressionSet.rds")
+
+counts <- SummarizedExperiment::assay(e2e4, "counts")
+
+colData <- as.data.frame(SummarizedExperiment::colData(e2e4)) |> 
+    mutate(humanAPOE = counts["APOE",])
+
+```
+
+## Expression of human APOE in Brain and Liver
+```{r}
+#| fig-height: 6
+#| fig-width: 5
+ggplot(colData, aes(x = group, y = humanAPOE)) +
+    geom_jitter(aes(color = batch),width = 0.1, height = 0, size = 2, alpha = 0.7) +
+    geom_violin(alpha = 0.5 ,col="gray") +
+    theme_minimal() +
+    labs(x = "",
+         y = "Human APOE Expression (Raw Counts)\n") +
+    theme(axis.text.x = element_text(size=11, angle = 20),
+        strip.text = element_text(size=14))+
+    facet_grid( Sex ~ Tissue)
+```
+
+
+
+```{r}
+coldata_wide <- colData |> 
+    rownames_to_column(var = "sampleID") |>
+    mutate(sampleID = str_remove(sampleID,"brain_|liver_")) |> 
+    select(sampleID, Sex, Tissue, humanAPOE, batch, group) |>
+    pivot_wider(names_from = "Tissue", values_from = "humanAPOE")
+
+
+```
+
+## Correlation (Spearman) of APOE expression between Brain and Liver
+```{r}
+
+ggplot(coldata_wide, aes(x = Brain, y = Liver))+
+    geom_point(aes(col=Sex), size = 2)+
+    geom_smooth(method = "lm", se=FALSE)+
+    #scale_y_continuous(transform = "log10")+
+    stat_cor(method = "spearman", size=5)+
+    theme_minimal()+
+    theme(axis.title = element_text(size=13))
+```
+
+
+```{r}
+#|fig-width: 10
+
+ggplot(coldata_wide, aes(x = Brain, y = Liver, color = Sex))+
+    geom_point(aes(col=Sex), size = 2)+
+    geom_smooth(method = "lm", se=FALSE)+
+    #scale_y_continuous(transform = "log10")+
+    stat_cor(method = "spearman", size=5)+
+    theme_minimal()+
+    theme(axis.title = element_text(size=13))+
+    facet_wrap(~ group, scales = "free")
+
+```

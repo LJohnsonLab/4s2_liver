@@ -1,0 +1,32 @@
+# Mouse Models and Experimental Design {.unnumbered}
+
+## **Animal Models**
+
+All procedures were approved by the **Institutional Animal Care and Use Committee (IACUC)** and complied with relevant ethical guidelines.
+
+### **ApoE4→ApoE2 Hepatocyte Switch Model**
+
+The primary experimental cohort consisted of *ApoE4\^flox/flox* mice (JAX #034676), which enable Cre-mediated conversion of the *ApoE4* allele to *ApoE2*. At **2 months of age**, male and female mice received a single **retro-orbital injection** of either:
+
+-   **AAV8-TBG-EGFP-T2A-iCre** (Cre group; Vector Biolabs, catalog #VB1725), or
+-   **AAV8-TBG-EGFP** (GFP control; Vector Biolabs, catalog #VB1743).
+
+The **Thyroid hormone-binding globulin (TBG)** promoter confers **hepatocyte-specific expression**, ensuring that recombination occurs exclusively in the liver. The bicistronic construct contains **enhanced green fluorescent protein (EGFP)** linked via the **Thoseaasigna virus 2A (T2A)** self-cleaving peptide to **improved Cre recombinase (iCre)**, enabling stoichiometric (1:1) expression of EGFP and iCre from a single transcript. This design produces **ApoE2 expression in hepatocytes**, while maintaining **ApoE4 expression in all extrahepatic tissues, including brain**. Mice injected with the control AAV8-TBG-EGFP vector retain **global ApoE4 expression**.
+
+### **Targeted-Replacement Controls**
+
+As reference isoform controls, age-matched 12-month-old male *ApoE* targeted-replacement (TR) mice expressing human **ApoE2**, **ApoE3**, or **ApoE4** were included in **Batch 2** only.
+
+### **5XFAD Status**
+
+All TR controls and switch mice (Cre and GFP) in this batch were **hemizygous for the 5XFAD transgene (5XFAD⁺/⁻)**, which carries human *APP* and *PSEN1* mutations driven by the neuron-specific **Thy1 promoter**. The 5XFAD genotype permits assessment of ApoE isoform and hepatocyte-specific effects in the context of amyloidogenic background.
+
+## **Sample Collection and batches**
+
+Animals were euthanized at 12 months of age, and **liver** and **brain** tissues were rapidly dissected, flash-frozen in liquid nitrogen, and stored at −80 °C until RNA extraction. In total, two sequencing batches were generated:
+
+-   **Batch 1:** 40 samples (20 liver, 20 brain). Of these, 18 samples (9 liver and 9 brain) were confirmed to be correctly genotyped and retained for further analysis. Two samples (*SAD_326* and *MAD_271*) were re-sequenced in Batch 2 to assess inter-batch reproducibility.
+
+-   **Batch 2:** 44 new samples (22 liver, 22 brain) comprising Cre, GFP, and 5XFAD+/– TR controls (E2, E3, E4).
+
+Thus, the final dataset included 62 samples across tissues and experimental groups.

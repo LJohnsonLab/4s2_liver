@@ -1,0 +1,45 @@
+﻿sampleID,mouse,Sex,Injection Age,Takedown Age,Injection Group,Tissue
+A1,MAD_416,Female,2 Months,8 Months,Cre-AAV,Liver
+A2,MAD_562,Female,2 Months,8 Months,Cre-AAV,Liver
+A3,SAD_678,Female,2 Months,8 Months,Cre-AAV,Liver
+A4,MAD_462,Female,2 Months,8 Months,Cre-AAV,Liver
+A5,SAD_626,Female,2 Months,8 Months,Cre-AAV,Liver
+A6,MAD_419,Male,2 Months,8 Months,Cre-AAV,Liver
+A7,MAD_404,Male,2 Months,8 Months,Cre-AAV,Liver
+A8,SAD_628,Male,2 Months,8 Months,Cre-AAV,Liver
+A9,SAD_672,Male,2 Months,8 Months,Cre-AAV,Liver
+A10,MAD_461,Male,2 Months,8 Months,Cre-AAV,Liver
+A11,MAD_271.2,Female,2 Months,8 Months,GFP Control,Liver
+A12,SAD_532,Male,2 Months,8 Months,GFP Control,Liver
+A13,SAD_326.2,Male,2 Months,8 Months,GFP Control,Liver
+A14,II2_403,Male,N/A,12 months, E2/E2; F/+,Liver
+A15,II2_419,Male,N/A,12 months, E2/E2; F/+,Liver
+A16,II2_431,Male,N/A,12 months, E2/E2; F/+,Liver
+A17,JJ3_283,Male,N/A,12 months, E3/E3; F/+,Liver
+A18,JJ3_308,Male,N/A,12 months, E3/E3; F/+,Liver
+A19,JJ3_316,Male,N/A,12 months, E3/E3; F/+,Liver
+A20,KK4_403,Male,N/A,12 months, E4/E4; F/+,Liver
+A21,KK4_410,Male,N/A,12 months, E4/E4; F/+,Liver
+A22,KK4_428,Male,N/A,12 months, E4/E4; F/+,Liver
+B1,MAD_416,Female,2 Months,8 Months,Cre-AAV,Brain
+B2,MAD_562,Female,2 Months,8 Months,Cre-AAV,Brain
+B3,SAD_678,Female,2 Months,8 Months,Cre-AAV,Brain
+B4,MAD_462,Female,2 Months,8 Months,Cre-AAV,Brain
+B5,SAD_626,Female,2 Months,8 Months,Cre-AAV,Brain
+B6,MAD_419,Male,2 Months,8 Months,Cre-AAV,Brain
+B7,MAD_404,Male,2 Months,8 Months,Cre-AAV,Brain
+B8,SAD_628,Male,2 Months,8 Months,Cre-AAV,Brain
+B9,SAD_672,Male,2 Months,8 Months,Cre-AAV,Brain
+B10,MAD_461,Male,2 Months,8 Months,Cre-AAV,Brain
+B11,MAD_271.2,Female,2 Months,8 Months,GFP Control,Brain
+B12,SAD_532,Male,2 Months,8 Months,GFP Control,Brain
+B13,SAD_326.2,Male,2 Months,8 Months,GFP Control,Brain
+B14,II2_403,Male,N/A,12 months, E2/E2; F/+,Brain
+B15,II2_419,Male,N/A,12 months, E2/E2; F/+,Brain
+B16,II2_431,Male,N/A,12 months, E2/E2; F/+,Brain
+B17,JJ3_283,Male,N/A,12 months, E3/E3; F/+,Brain
+B18,JJ3_308,Male,N/A,12 months, E3/E3; F/+,Brain
+B19,JJ3_316,Male,N/A,12 months, E3/E3; F/+,Brain
+B20,KK4_403,Male,N/A,12 months, E4/E4; F/+,Brain
+B21,KK4_410,Male,N/A,12 months, E4/E4; F/+,Brain
+B22,KK4_428,Male,N/A,12 months, E4/E4; F/+,Brain

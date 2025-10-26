@@ -1,0 +1,60 @@
+---
+title: "Analysis design for switch mice"
+date: today
+embed-resources: true
+format: html
+---
+
+## Analytical alternatives for the switch experiment
+
+### Pool the data and **ignore batch** (single combined DE without batch term)
+
+-   Analyze liver and brain separately.
+-   Batch 1 and 2 analyzed together as if they were exchangeable.
+
+**Consequences**
+
+-   **Violated**: batch–group independence. All **Cre** samples are in **Batch 2**; Batch 1 has **GFP only**. *Any DE attributed to group* will be inseparable from *batch* artifacts.
+-   **Non-causal, biased estimates** for Cre vs GFP; inflation of false positives/negatives due to confounding.
+
+**Use case**
+
+-   *Highly problematic*.
+
+------------------------------------------------------------------------
+
+### Combined analysis **with batch as a covariate** (DESeq2 model includes batch)
+
+-   Analyze liver and brain separately.
+-   Switch comparison: `~ batch + group`.
+
+**Consequences**
+
+-   **the *group* effect** is identified **within Batch 2**, because Cre exists only there and GFP exists in both batches.
+-   The model uses Batch 1 GFP to estimate the **batch main effect**, and contrasts **Cre vs GFP within Batch 2** for the *group* effect.
+-   **Valid** for Cre vs GFP, but effective information for the *group* effect comes solely from **Batch 2**; Batch-1 GFP mainly improves estimation of the **batch** term and dispersion.
+-   Slight variance reduction vs Batch-2-only due to shared information on dispersion/means; conclusions align with a within-Batch-2 contrast.
+-   A **batch×group interaction** cannot be tested.
+
+**Use case**
+
+-   Appropriate, provided it is explicitly stated that the Cre effect is identified within Batch 2.
+
+------------------------------------------------------------------------
+
+### **Restrict to Batch 2** for comparative (Cre vs GFP) analysis
+
+-   Per tissue: `~ group` on **Batch-2 samples only** (Cre and GFP present).
+
+**Consequences**
+
+-   Clean internal validity: **no batch–group confounding**.
+-   **Most defensible** for causal interpretation of Cre vs GFP.
+-   Modest loss of nominal power compared with (2) because Batch-1 GFP is foregone when estimating dispersion; in practice, DESeq2’s shrinkage usually mitigates this.
+-   Easiest to explain.
+
+**Use case**
+
+-   Strong choice for the **primary switch analysis** (Cre vs GFP).
+
+------------------------------------------------------------------------

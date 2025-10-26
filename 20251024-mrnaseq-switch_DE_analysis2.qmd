@@ -13,8 +13,9 @@ format: html
 
 ## Combined analysis **with batch as a covariate**
 
-> DESeq2 model includes batch:`~ batch + group`.
-    Significant DEGs are identified with FDR<0.05 and |log2FC|>1.
+> DESeq2 model includes batch:`~ batch + group`.  
+
+    Significant DEGs are identified with __FDR<0.05__ and |log2FC|>1.
 
 ```{r}
 library(tidyverse)

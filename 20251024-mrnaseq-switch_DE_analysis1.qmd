@@ -12,67 +12,44 @@ execute:
 format: html
 ---
 
-
-To identify transcriptional changes associated with Cre-mediated ApoE4→ApoE2 conversion, we performed differential expression (DE) analysis comparing Cre-AAV-treated mice to GFP control animals in both liver and brain tissues. Samples from Batches 1 and 2 were analyzed jointly, as both were processed under comparable experimental and sequencing conditions.
+> To identify transcriptional changes associated with Cre-mediated ApoE4→ApoE2 conversion, we performed differential expression (DE) analysis comparing Cre-AAV-treated mice to GFP   control animals in both liver and brain tissues. **Samples from Batches 1 and 2 were analyzed jointly**, as both were processed under comparable experimental and sequencing conditions.
 
 ## Handling Batch-Treatment Confounding
 
-The experimental design presented a challenge for batch effect correction: _Batch 1 included only GFP control mice, while Batch 2 contained both GFP controls and Cre-AAV-treated animals_. Although tissue and sex distributions were balanced within each batch (50% brain and 50% liver for both sexes), the absence of Cre-AAV samples in Batch 1 created a clear batch-treatment confounding that precluded standard batch correction approaches.
+The experimental design presented a challenge for batch effect correction: *Batch 1 included only GFP control mice, while Batch 2 contained both GFP controls and Cre-AAV-treated animals*. Although tissue and sex distributions were balanced within each batch (50% brain and 50% liver for both sexes), the absence of Cre-AAV samples in Batch 1 created a **nesting** of treatment within batch that complicated the analysis strategy.
 
 <details>
-  <summary>Complete confounding</summary>
-  
-This statement explains a fundamental statistical limitation when batch and treatment are confounded. Let me break it down:
+
+<summary>Understanding nesting</summary>
 
 
-**What does "complete confounding" mean?**
+**What does "nesting" mean in this context?**
 
-In this experiment:
-- **Batch 1** = All GFP controls (no Cre-AAV samples)
+In this experiment: 
+- **Batch 1** = All GFP controls (no Cre-AAV samples)  
 - **Batch 2** = Both GFP controls AND Cre-AAV samples
 
-This means **Treatment** (Cre-AAV vs GFP) and **Batch** (1 vs 2) are partially confounded: every Cre-AAV sample comes from Batch 2, so treatment is nested within batch.
+This means **Treatment** (Cre-AAV vs GFP) is nested within **Batch**: every Cre-AAV sample comes from Batch 2. This creates a dependency between batch and treatment variables.
 
-**Why can't we include batch in the model?**
+**Why is this problematic?**
 
-If we wanted to use a design formula like `~ Batch + Sex + Treatment`, `DESeq2` would attempt to estimate three effects:
-1. The effect of being in Batch 2 vs Batch 1
-2. The effect of being male vs female  
-3. The effect of Cre-AAV treatment vs GFP control
+When treatment is nested within batch, any observed difference between Cre-AAV and GFP could potentially be attributed to: - True biological effect of the treatment, OR - Technical batch effects (differences in processing, sequencing, or other technical factors between batches)
 
-But here's the problem: **All Cre-AAV samples are in Batch 2**. So when the model tries to separate:
-- "How much of the gene expression change is due to batch differences?" 
-- "How much is due to treatment?"
+**Key limitations and assumptions:**
 
-It cannot distinguish between these two possibilities because they are mathematically inseparable (collinear). Any difference between Cre-AAV and control could equally be attributed to:
-- True biological effect of the treatment, OR
-- Technical artifact from Batch 2 being different from Batch 1
+-   **No interaction testing**: We cannot test whether the treatment effect differs between batches (batch × treatment interaction) because Cre-AAV samples only exist in Batch 2. We must assume the treatment effect would be similar in both batches.
 
-**The mathematical issue:**
+-   **Information source**: All information about the treatment effect comes from comparisons within Batch 2. Batch 1 samples contribute to estimating the batch effect and improving dispersion estimates but do not directly inform the treatment contrast.
 
-In linear algebra terms, the design matrix would have columns that are linearly dependent (or nearly so). The model would be overparameterized - trying to estimate more effects than the data can support. DESeq2 would either:
-1. Fail with an error about the design not being full rank
-2. Drop one of the confounded terms automatically
-3. Produce unreliable estimates with inflated standard errors
-
-**Soultion:**
-
-Instead of trying to explicitly model batch (which is impossible), we use the following strategy:
-- Use GFP controls from **both batches** as the reference group 
-- Compare Cre-AAV samples (Batch 2 only) against this pooled control group
-- Assume that having controls in both batches provides some implicit correction, as any batch effect should affect the Batch 2 controls similarly to the Batch 2 treated samples
-
+-   **Uncertainty**: If batch effects are large relative to treatment effects, our ability to confidently attribute differences to treatment is reduced, even with batch adjustment.
 
 </details>
 
-In the presence of complete confounding between batch and treatment, including batch as a covariate in the DESeq2 design formula would render the treatment effect unidentifiable, as the model cannot distinguish true biological effects from technical batch variation. To address this limitation, we adopted a strategy that leverages the balanced representation of GFP control samples across both batches. Since control animals were present in both Batch 1 and Batch 2, any systematic technical differences between batches should manifest as consistent shifts in the control samples. By comparing Cre-AAV samples (Batch 2 only) to the pooled GFP controls (Batches 1 and 2), we effectively use the cross-batch control samples as an internal reference to stabilize the comparison.
+Principal component analysis of the normalized expression data revealed no distinct clustering by batch, and technical replicates clustered appropriately together, suggesting that batch-related technical variation was minimal relative to biological variation. Given this empirical evidence of minimal batch effects, we proceeded with a `~ Sex + group` model without explicit batch adjustment. This simpler model is appropriate when batch effects are negligible, as demonstrated by our quality control analyses, and avoids assuming no batch × treatment interaction that cannot be tested with the current design.
 
-This approach assumes that: (1) batch effects affect control and treatment groups similarly within Batch 2, and (2) the biological variability within control samples across batches is comparable to within-batch variability. The inclusion of sex as a covariate in our model (~ Sex + group) further helps to account for a major source of biological variation that is orthogonal to both batch and treatment effects. While this strategy does not eliminate batch effects entirely, it provides a reasonable compromise when treatment and batch are inherently confounded, allowing us to identify differentially expressed genes while acknowledging that our statistical power may be somewhat reduced compared to a fully balanced design.
-
+However, we acknowledge that this approach makes the implicit assumption that any residual batch effects affect both GFP controls and Cre-AAV-treated samples similarly within Batch 2. The inclusion of sex as a covariate further accounts for a major source of biological variation orthogonal to both batch and treatment effects. *While not eliminating potential batch effects entirely, the combination of empirical validation (PCA), cross-batch control representation, and conservative statistical thresholds provides a reasonable framework for identifying differentially expressed genes in this nested design*.
 
 ## Data Processing and Quality Control
-
-> For the global differential expression analysis, samples from Batches 1 and 2 were analyzed jointly, as both were processed under comparable experimental and sequencing conditions.
 
 ```{r}
 library(tidyverse)
@@ -84,7 +61,7 @@ library(patchwork)
 all_mice <- readRDS("data/20251020-steve_expressionSet.rds")
 ```
 
-The distribution of median gene expression values across all samples exhibited the characteristic right-skewed pattern typical of RNA-seq count data, with the majority of genes expressed at low levels and only a small subset displaying high expression (log₁₀ > 4). This initial assessment confirmed that lowly expressed, noise-dominated genes predominated in the raw dataset prior to filtering and normalization.
+The distribution of median gene expression values across all samples exhibited the characteristic right-skewed pattern typical of RNA-seq count data, with the majority of genes expressed at low levels and only a small subset displaying high expression (log₁₀ \> 4). This initial assessment confirmed that lowly expressed, noise-dominated genes predominated in the raw dataset prior to filtering and normalization.
 
 ```{r}
 #|fig-height: 4
@@ -111,22 +88,23 @@ dds <- collapseReplicates(dds_keep,
               renameCols = TRUE)
 ```
 
-* Genes with very low read counts were excluded to minimize technical noise. After filtering for a minimum of 20 counts in at least five samples, approximately `r nrow(dds)` genes were retained for downstream analysis.
+-   Genes with very low read counts were excluded to minimize technical noise. After filtering for a minimum of 20 counts in at least five samples, approximately `r nrow(dds)` genes were retained for downstream analysis.
 
-  -   Filtering removes genes with little information (low counts / expressed in few samples), which stabilizes dispersion estimates and multiple‑testing behavior.
+    -   Filtering removes genes with little information (low counts / expressed in few samples), which stabilizes dispersion estimates and multiple‑testing behavior.
 
-  -   The choice of cutoff (20 counts, ≥5 samples) is arbitrary
+    -   The choice of cutoff (20 counts, ≥5 samples) is arbitrary
 
-* Technical replicates were collapsed by averaging counts.  
-* DESeq2 model includes sex: `~ Sex + group`
+-   Technical replicates were collapsed by averaging counts.\
+
+-   DESeq2 model includes sex: `~ Sex + group`
 
 To minimize technical noise and improve statistical power, genes with fewer than 20 counts in at least five samples were excluded from downstream analysis, retaining approximately `r nrow(dds)` genes. This filtering step removes genes with minimal information content, those with low counts or expression in few samples, thereby stabilizing dispersion estimates and improving multiple-testing correction. While the specific cutoff (20 counts in ≥5 samples) is somewhat arbitrary, it represents a reasonable balance between retaining informative genes and excluding noise. Technical replicates were collapsed by averaging their counts prior to statistical modeling.
 
 Differential expression analysis was performed using DESeq2 with a design formula accounting for both biological sex and treatment group (`~ Sex + group`), with GFP Control set as the reference level.
 
 ## Differential Expression Analysis
-### Liver
 
+### Liver
 
 ```{r}
 # Subset to switch mice
@@ -176,8 +154,7 @@ b <- ggplot(significant_genes,aes(log(baseMean+1))) +
 p|b
 ```
 
-Diagnostic plots confirmed the validity of the analysis. The p-value distribution showed substantial enrichment for low p-values, indicating the presence of genuine differential expression rather than an all-noise result. 
-Additionally, the log(baseMean) distribution for significant genes was strongly skewed toward moderate-to-high expression levels, demonstrating that our findings are driven by well-expressed features rather than low-count noise that can spuriously inflate fold-changes and p-values.
+Diagnostic plots confirmed the validity of the analysis. The p-value distribution showed substantial enrichment for low p-values, indicating the presence of genuine differential expression rather than an all-noise result. Additionally, the log(baseMean) distribution for significant genes was strongly skewed toward moderate-to-high expression levels, demonstrating that our findings are driven by well-expressed features rather than low-count noise that can spuriously inflate fold-changes and p-values.
 
 ##### **Significantly differentially expressed genes in liver**<br>Cre-AAV and GFP control <br>(FDR \< 0.01, \|log2FC\| \> 1) {.unnumbered}
 
@@ -193,7 +170,6 @@ significant_genes |>
 
 ```
 
-
 ```{r}
 clean_res_liver_all <- res_liver_all |> 
   rownames_to_column(var = "gene") |>
@@ -205,8 +181,7 @@ clean_n_liver_all <- clean_res_liver_all |>
 
 ```
 
-
-To focus on high-confidence, biologically interpretable results, we applied an additional filtering step to remove pseudogenes (_-ps, -rs_), unannotated loci (_Gm-, Rik, ENSMUS_), mitochondrial (_-mt_), and ribosomal (_-Rp_) genes. This yielded `r nrow(clean_n_liver_all)` high-confidence nuclear genes that were consistently dysregulated in response to Cre-mediated ApoE4→ApoE2 conversion in liver, after adjusting for sex effects.
+To focus on high-confidence, biologically interpretable results, we applied an additional filtering step to remove pseudogenes (*-ps, -rs*), unannotated loci (*Gm-, Rik, ENSMUS*), mitochondrial (*-mt*), and ribosomal (*-Rp*) genes. This yielded `r nrow(clean_n_liver_all)` high-confidence nuclear genes that were consistently dysregulated in response to Cre-mediated ApoE4→ApoE2 conversion in liver, after adjusting for sex effects.
 
 ```{r}
 clean_n_liver_all |> 
@@ -263,9 +238,7 @@ EnhancedVolcano(clean_res_liver_all,
 )
 ```
 
-
 ### Brain
-
 
 ```{r}
 # Subset to switch mice
@@ -344,9 +317,7 @@ clean_n_brain_all <- clean_res_brain_all |>
 
 ```
 
-
-After applying the same filtering criteria to exclude pseudogenes, unannotated loci, mitochondrial genes, and ribosomal protein genes, we retained `r nrow(clean_n_liver_all)` high-confidence nuclear genes  that showed consistent dysregulation in brain tissue following Cre-mediated ApoE4→ApoE2 conversion, adjusted for sex.
-
+After applying the same filtering criteria to exclude pseudogenes, unannotated loci, mitochondrial genes, and ribosomal protein genes, we retained `r nrow(clean_n_liver_all)` high-confidence nuclear genes that showed consistent dysregulation in brain tissue following Cre-mediated ApoE4→ApoE2 conversion, adjusted for sex.
 
 ```{r}
 clean_n_brain_all |> 
@@ -405,20 +376,16 @@ EnhancedVolcano(clean_res_brain_all,
 
 ### Common DEGs in liver and brain
 
-
-
 ```{r}
 common_degs <- intersect(clean_n_brain_all$gene, clean_n_liver_all$gene)
 
 
 ```
 
-To identify core molecular responses to ApoE isoform conversion that occur independently of tissue context, we intersected the lists of high-confidence DEGs from liver and brain. This analysis revealed `r length(common_degs)` genes that were significantly differentially expressed in both tissues (FDR < 0.01, |log₂FC| > 1):
+To identify core molecular responses to ApoE isoform conversion that occur independently of tissue context, we intersected the lists of high-confidence DEGs from liver and brain. This analysis revealed `r length(common_degs)` genes that were significantly differentially expressed in both tissues (FDR \< 0.01, \|log₂FC\| \> 1):
 
 ```{r}
 cat(paste(common_degs, collapse = ", "))
 ```
 
-
-These shared DEGs may represent core components of the molecular response to Cre-mediated ApoE4→ApoE2 conversion that operate across multiple tissues. Notably, APOE itself was among the common DEGs, confirming successful isoform switching at the transcriptional level. Interestingly, APOE expression exhibited tissue-specific directional responses: expression decreased in liver but increased in brain following Cre-AAV treatment. This divergent regulation suggests that the ApoE4→ApoE2 conversion triggers distinct tissue-specific feedback mechanisms, potentially reflecting the different roles of ApoE in hepatic lipoprotein metabolism versus neuronal lipid homeostasis and synaptic function.
-The remaining 18 common DEGs span diverse cellular functions including protein homeostasis (_Hspb1, Uba52rt, Adrm1b, Ube2srt_), metabolism (_Eno1b, Ahcyl_), nucleocytoplasmic transport (_Kpna2rt_), and translational regulation (_Eif3j2, Sap18b_), suggesting that ApoE isoform conversion triggers coordinated transcriptional programs affecting multiple fundamental cellular processes across both liver and brain tissues.
+These shared DEGs may represent core components of the molecular response to Cre-mediated ApoE4→ApoE2 conversion that operate across multiple tissues. Notably, APOE itself was among the common DEGs, confirming successful isoform switching at the transcriptional level. Interestingly, APOE expression exhibited tissue-specific directional responses: expression decreased in liver but increased in brain following Cre-AAV treatment. This divergent regulation suggests that the ApoE4→ApoE2 conversion triggers distinct tissue-specific feedback mechanisms, potentially reflecting the different roles of ApoE in hepatic lipoprotein metabolism versus neuronal lipid homeostasis and synaptic function. The remaining 18 common DEGs span diverse cellular functions including protein homeostasis (*Hspb1, Uba52rt, Adrm1b, Ube2srt*), metabolism (*Eno1b, Ahcyl*), nucleocytoplasmic transport (*Kpna2rt*), and translational regulation (*Eif3j2, Sap18b*), suggesting that ApoE isoform conversion triggers coordinated transcriptional programs affecting multiple fundamental cellular processes across both liver and brain tissues.

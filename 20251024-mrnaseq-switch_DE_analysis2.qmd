@@ -1,5 +1,6 @@
 ---
 title: "Differential Expression Analysis II"
+subtitle: "Combined analysis with batch as a covariate"
 date: today
 toc: true
 toc-depth: 4
@@ -11,11 +12,11 @@ execute:
 format: html
 ---
 
-## Combined analysis **with batch as a covariate**
+## Handling Batch-Treatment Confounding
 
-> DESeq2 model includes batch:`~ batch + group`.  
+When treatment is nested within batch, any observed difference between Cre-AAV and GFP could potentially be attributed to either true biological effects of the treatment or technical batch effects. However, unlike complete confounding, our design does allow for batch adjustment because GFP control samples exist in both batches.  
 
-    Significant DEGs are identified with __FDR<0.05__ and |log2FC|>1.
+A model with `~ batch + Sex + group` is mathematically valid: the batch effect can be estimated from GFP samples present in both batches, and the treatment effect is then estimated as the Cre-AAV versus GFP difference within Batch 2 after accounting for the batch effect.
 
 ```{r}
 library(tidyverse)
@@ -27,7 +28,7 @@ library(patchwork)
 all_mice <- readRDS("data/20251020-steve_expressionSet.rds")
 ```
 
-### Pre-filtering low count genes
+## Pre-filtering low count genes
 ```{r}
 # Create initial DESeq2 dataset without specifying a design formula.
 dds0 <- DESeqDataSet(all_mice,
@@ -36,20 +37,26 @@ dds0 <- DESeqDataSet(all_mice,
 # Lowly expressed genes are filtered out to improve statistical power and reduce noise.
 # Only genes with at least 20 counts in 5 or more samples are retained.
 keep <- rowSums(counts(dds0) >= 20) >= 5
-dds <- dds0[keep,]
+dds_keep <- dds0[keep,]
+# Collapse technical replicates by averaging counts for samples with the same name prefix before the first dot.
+collapsed_names <- str_split_i(colnames(dds_keep), pattern = "\\.", i = 1)
+dds <- collapseReplicates(dds_keep, 
+              groupby = collapsed_names,
+              run = collapsed_names,
+              renameCols = TRUE)
 ```
 
 Genes with very low read counts were excluded to minimize technical noise. After filtering for a minimum of 20 counts in at least five samples, approximately `r nrow(dds)` genes were retained for downstream analysis.
 
-
+## Differential expression analysis between Cre-AAV and GFP control groups in switch mice
 ### Liver
 
-#### All mice (male and females)
+
 
 ```{r}
 # Subset to switch mice
 dds_switch_liver <- DESeqDataSet(dds[,dds$mice == "switch" & dds$Tissue == "Liver"],
-  design = ~ batch + group)
+  design = ~ batch + Sex + group)
 
 # Relevel to set GFP Control as the reference group
 dds_switch_liver$group = relevel(dds_switch_liver$group, ref = "GFP Control")
@@ -65,10 +72,10 @@ res_liver_all <- results(des_switch_liver) |> as.data.frame()
 
 significant_genes <- res_liver_all |> 
   rownames_to_column(var = "gene") |> 
-  filter(padj < 0.05 & abs(log2FoldChange) > 1)
+  filter(padj < 0.01 & abs(log2FoldChange) > 1)
 ```
 
-There are `r nrow(significant_genes)` significantly differentially expressed genes (FDR \< 0.05, \|log2FC\| \> 1) in the liver between Cre-AAV and GFP control switch mice.
+In liver tissue from all mice (males and females combined), we identified `r nrow(significant_genes)` significantly differentially expressed genes between Cre-AAV and GFP control animals (FDR \< 0.05, \|log2FC\| \> 1).
 
 ##### **Diagnostic plots for the DE analysis** {.unnumbered}
 
@@ -94,8 +101,9 @@ b <- ggplot(significant_genes,aes(log(baseMean+1))) +
 p|b
 ```
 
--   A histogram enriched for low p-values shows the presence of true differential expression (deviation from the uniform null), rather than an all-noise result.\
--   Most significant genes exhibited moderate to high expression levels (log₁₀ baseMean between 5 and 7), confirming that differential expression was primarily detected in well-expressed transcripts with sufficient statistical power. Very lowly expressed genes contributed minimally, further supporting the robustness of the filtering and normalization procedures.
+Diagnostic plots confirmed the validity of the analysis. The p-value distribution showed substantial enrichment for low p-values, indicating genuine differential expression rather than an all-noise result.  
+
+Most significant genes exhibited moderate to high expression levels (`log₁₀ baseMean` between 5 and 7), confirming that differential expression was primarily detected in well-expressed transcripts with sufficient statistical power. Very lowly expressed genes contributed minimally, further supporting the robustness of the filtering and normalization procedures.
 
 ##### **Significantly differentially expressed genes in liver**<br>Cre-AAV and GFP control <br>(FDR \< 0.05, \|log2FC\| \> 1) {.unnumbered}
 
@@ -111,108 +119,81 @@ significant_genes |>
 
 ```
 
-#### Males only
-
 ```{r}
-# Subset to switch mice
-dds_switch_liver_male <- DESeqDataSet(dds[,dds$mice == "switch" & dds$Tissue == "Liver" & dds$Sex =="Male"],design = ~ batch + group)
+clean_res_liver_all <- res_liver_all |> 
+  rownames_to_column(var = "gene") |>
+  mutate(clean = ifelse (str_detect(gene,"^Rp|^Gm|^mt|ENSMUS|-ps|-rs|Rik$"), NA,gene), .after = "gene")
 
-# Relevel to set GFP Control as the reference group
-dds_switch_liver_male$group = relevel(dds_switch_liver_male$group, ref = "GFP Control")
+clean_n_liver_all_2 <- clean_res_liver_all |> 
+  filter(!is.na(clean)) |> 
+  filter(padj < 0.01 & abs(log2FoldChange) > 1)
 
-# Run DESeq2
-des_switch_liver_male <- DESeq(dds_switch_liver_male)
-
-# Check results names
-# resultsNames(des_switch_liver_male)
-
-# Get results
-res_liver_male <- results(des_switch_liver_male) |> as.data.frame()
-
-significant_genes_male <- res_liver_male |> 
-  rownames_to_column(var = "gene") |> 
-  filter(padj < 0.05 & abs(log2FoldChange) > 1)
 ```
 
-There are `r nrow(significant_genes_male)` significantly differentially expressed genes (FDR \< 0.05, \|log2FC\| \> 1) in the liver between Cre-AAV and GFP control switch mice.
-
-##### **Diagnostic plots for the DE analysis** {.unnumbered}
+To focus on high-confidence, biologically interpretable results, we applied an additional filtering step to remove pseudogenes (*-ps, -rs*), unannotated loci (*Gm-, Rik, ENSMUS*), mitochondrial (*-mt*), and ribosomal (*-Rp*) genes. This yielded `r nrow(clean_n_liver_all_2)` high-confidence nuclear genes that were consistently dysregulated in response to Cre-mediated ApoE4→ApoE2 conversion in liver, after adjusting for both sex and batch effects.
 
 ```{r}
-#|fig-width: 8
-#|fig-height: 3
-
-p <- ggplot(res_liver_male,aes(pvalue)) +
-  geom_histogram(binwidth = 0.05, fill = "lightblue", color = "darkblue") +
-  labs(
-     title = "Computed p-values\n for all genes",
-     x = "\np-value (Wald test)")+
-      theme_minimal()
-
-
-b <- ggplot(significant_genes_male,aes(log(baseMean+1))) +
-  geom_histogram( fill = "lightblue", color = "darkblue") +
-  labs(
-     title = "Log baseMean for all significant genes",
-     x = "\nLog10 (baseMean + 1)")+
-      theme_minimal()
-
-p|b
-```
-
--   A histogram enriched for low p-values shows the presence of true differential expression (deviation from the uniform null), rather than an all-noise result.\
--   The log(baseMean) distribution for significant genes being skewed toward moderate–high counts indicates findings are driven by well-expressed features, not low-count noise that can inflate fold-changes and p-values.
-
-##### **Significantly differentially expressed genes in liver**<br>Cre-AAV and GFP control <br>(FDR \< 0.05, \|log2FC\| \> 1) {.unnumbered}
-
-```{r}
-
-# Display significant genes in a table
-significant_genes_male |> 
+clean_n_liver_all_2 |> 
   select(gene,baseMean, log2FoldChange, padj) |>
   arrange(padj) |> 
   kable(digits = 2) |> 
   kable_styling(full_width = F) |> 
   scroll_box(width = "100%", height = "400px")
-
 ```
-
-#### Females only
 
 ```{r}
-# Subset to switch mice
-dds_switch_liver_female <- DESeqDataSet(dds[,dds$mice == "switch" & dds$Tissue == "Liver" & dds$Sex =="Female"],design = ~ batch + group)
+#|fig-width: 9
+#| fig-height: 6
 
-# Relevel to set GFP Control as the reference group
-dds_switch_liver_female$group = relevel(dds_switch_liver_female$group, ref = "GFP Control")
-
-# Run DESeq2
-des_switch_liver_female <- DESeq(dds_switch_liver_female)
-
-# Check results names
-# resultsNames(des_switch_liver_female)
-
-# Get results
-res_liver_female <- results(des_switch_liver_female) |> as.data.frame()
-
-significant_genes_female <- res_liver_female |> 
-  rownames_to_column(var = "gene") |> 
-  filter(padj < 0.05 & abs(log2FoldChange) > 1)
+# Create a volcano plot for differentially expressed genes (DEGs) in the liver
+EnhancedVolcano(clean_res_liver_all,
+    # Label the points on the plot with gene names from the rownames of res_sc
+    lab = clean_res_liver_all$clean,
+    # Set the main title of the plot
+    title = "Differentially expressed genes (DEGs)",
+    # Set the subtitle indicating the comparison groups
+    subtitle = "Cre-AAV vs. GFP control +/+",
+    ylab = bquote(~-Log[10] ~ italic(pvalue)),
+    # Customize the legend labels for different categories of DEGs
+    legendLabels = c("NS", 
+                     expression(paste("|",Log[2], " FC","|", " >1")), 
+                     "FDR < 0.05", 
+                     expression(paste("FDR < 0.05 and ","|",Log[2], " FC","|", " >1"))),
+    # Set the caption below the plot (empty in this case)
+    caption = "",
+    # Set the size and face of the labels on the plot
+    labSize = 5, labFace = "italic",
+    # Position the legend to the right of the plot
+     legendPosition = 'no',
+    # Draw lines connecting labels to their corresponding points
+    drawConnectors = TRUE,
+    # Connect labels to points in both directions (from left and right)
+    directionConnectors = "both",
+    # Allow for an infinite number of overlapping points to be labeled
+    max.overlaps = Inf,
+    # Set the fold change cutoff for highlighting DEGs
+    FCcutoff = 1,
+    # Specify the column to use for the p-value cutoff
+    pCutoffCol = "padj",
+    # Set the p-value cutoff for significance
+    pCutoff = 0.01,
+    #cutoffLineType = "blank",
+    # Set the x-axis to represent log2 fold change
+    x = 'log2FoldChange',
+    # Set the y-axis to represent the p-value
+    y = 'pvalue',
+    ylim = c(0,13),
+    xlim = c(-11,11)
+)
 ```
-
-There are 0 significantly differentially expressed genes (FDR \< 0.05) in the liver between **female** Cre-AAV and GFP control switch mice.
 
 
 ### Brain
 
-
-
-#### All mice (male and females)
-
 ```{r}
 # Subset to switch mice
 dds_switch_brain <- DESeqDataSet(dds[,dds$mice == "switch" & dds$Tissue == "Brain"],
-  design = ~ batch + group)
+  design = ~ batch + Sex + group)
 
 # Relevel to set GFP Control as the reference group
 dds_switch_brain$group = relevel(dds_switch_brain$group, ref = "GFP Control")
@@ -231,7 +212,7 @@ significant_genes_brain <- res_brain_all |>
   filter(padj < 0.01)
 ```
 
-There are `r nrow(significant_genes_brain)` significantly differentially expressed genes (FDR \< 0.05, \|log2FC\| \> 1) in the brain between Cre-AAV and GFP control switch mice.
+In brain tissue from all mice, we identified `r nrow(significant_genes_brain)` significantly differentially expressed genes between Cre-AAV and GFP control animals using the same statistical approach and thresholds (FDR \< 0.05, \|log2FC\| \> 1).
 
 ##### **Diagnostic plots for the DE analysis** {.unnumbered}
 
@@ -257,8 +238,7 @@ b <- ggplot(significant_genes_brain,aes(log(baseMean+1))) +
 p|b
 ```
 
--   The distribution of p-values from the Wald test was approximately uniform, with no enrichment of low p-values
--   The log(baseMean) distribution for significant genes displayed moderate to high expression levels
+Diagnostic plots revealed that the p-value distribution from the Wald test was approximately uniform with no substantial enrichment of low p-values, suggesting a more modest transcriptional response in brain compared to liver. Nevertheless, the `log₁₀ baseMean` distribution for significant genes displayed moderate to high expression levels, indicating that detected changes occurred in well-expressed genes.
 
 ##### **Significantly differentially expressed genes in brain**<br>Cre-AAV and GFP control <br>(FDR \< 0.05, \|log2FC\| \> 1) {.unnumbered}
 
@@ -274,63 +254,23 @@ significant_genes_brain |>
 
 ```
 
-#### Males only
-
 ```{r}
-# Subset to switch mice
-dds_switch_brain_male <- DESeqDataSet(dds[,dds$mice == "switch" & dds$Tissue == "Brain" & dds$Sex =="Male"],design = ~ batch + group)
+clean_res_brain_all <- res_brain_all |> 
+  rownames_to_column(var = "gene") |>
+  mutate(clean = ifelse (str_detect(gene,"^Rp|^Gm|^mt|ENSMUS|-ps|-rs|Rik$"), NA,gene), .after = "gene")
 
-# Relevel to set GFP Control as the reference group
-dds_switch_brain_male$group = relevel(dds_switch_brain_male$group, ref = "GFP Control")
+clean_n_brain_all_2 <- clean_res_brain_all |> 
+  filter(!is.na(clean)) |> 
+  filter(padj < 0.01 & abs(log2FoldChange) > 1)
 
-# Run DESeq2
-des_switch_brain_male <- DESeq(dds_switch_brain_male)
 
-# Check results names
-# resultsNames(des_switch_brain_male)
 
-# Get results
-res_brain_male <- results(des_switch_brain_male) |> as.data.frame()
-
-significant_genes_male_brain <- res_brain_male |> 
-  rownames_to_column(var = "gene") |> 
-  filter(padj < 0.05 & abs(log2FoldChange) > 1)
 ```
 
-There are `r nrow(significant_genes_male_brain)` significantly differentially expressed genes (FDR \< 0.05, \|log2FC\| \> 1) in the brain between Cre-AAV and GFP control switch mice.
-
-##### **Diagnostic plots for the DE analysis** {.unnumbered}
+After applying the same filtering criteria to exclude pseudogenes, unannotated loci, mitochondrial genes, and ribosomal protein genes, we retained `r nrow(clean_n_brain_all_2)` high-confidence nuclear genes that showed consistent dysregulation in brain tissue following Cre-mediated ApoE4→ApoE2 conversion, adjusted for batch and sex.
 
 ```{r}
-#|fig-width: 8
-#|fig-height: 3
-
-p <- ggplot(res_brain_male,aes(pvalue)) +
-  geom_histogram(binwidth = 0.05, fill = "lightblue", color = "darkblue") +
-  labs(
-     title = "Computed p-values\n for all genes",
-     x = "\np-value (Wald test)")+
-      theme_minimal()
-
-
-b <- ggplot(significant_genes_male_brain,aes(log(baseMean+1))) +
-  geom_histogram( fill = "lightblue", color = "darkblue") +
-  labs(
-     title = "Log baseMean for all significant genes",
-     x = "\nLog10 (baseMean + 1)")+
-      theme_minimal()
-
-p|b
-```
-
--   The few significant transcripts detected displayed moderate to high expression levels
-
-##### **Significantly differentially expressed genes in brain**<br>Cre-AAV and GFP control <br>(FDR \< 0.05, \|log2FC\| \> 1) {.unnumbered}
-
-```{r}
-
-# Display significant genes in a table
-significant_genes_male_brain |> 
+clean_n_brain_all_2 |> 
   select(gene,baseMean, log2FoldChange, padj) |>
   arrange(padj) |> 
   kable(digits = 2) |> 
@@ -339,89 +279,13 @@ significant_genes_male_brain |>
 
 ```
 
-#### Females only
-
 ```{r}
-# Subset to switch mice
-dds_switch_brain_female <- DESeqDataSet(dds[,dds$mice == "switch" & dds$Tissue == "Brain" & dds$Sex =="Female"],design = ~ batch + group)
-
-# Relevel to set GFP Control as the reference group
-dds_switch_brain_female$group = relevel(dds_switch_brain_female$group, ref = "GFP Control")
-
-# Run DESeq2
-des_switch_brain_female <- DESeq(dds_switch_brain_female)
-
-# Check results names
-# resultsNames(des_switch_brain_female)
-
-# Get results
-res_brain_female <- results(des_switch_brain_female) |> as.data.frame()
-
-significant_genes_female_brain <- res_brain_female |> 
-  rownames_to_column(var = "gene") |> 
-  filter(padj < 0.05 & abs(log2FoldChange) > 1)
-```
-
-There are `r nrow(significant_genes_female_brain)` significantly differentially expressed genes (FDR \< 0.01, \|log2FC\| \> 1) in the brain between **female** Cre-AAV and GFP control switch mice.
-
-##### **Diagnostic plots for the DE analysis** {.unnumbered}
-
-```{r}
-#|fig-width: 8
-#|fig-height: 3
-
-p <- ggplot(res_brain_female,aes(pvalue)) +
-  geom_histogram(binwidth = 0.05, fill = "lightblue", color = "darkblue") +
-  labs(
-     title = "Computed p-values\n for all genes",
-     x = "\np-value (Wald test)")+
-      theme_minimal()
-
-
-b <- ggplot(significant_genes_female_brain,aes(log(baseMean+1))) +
-  geom_histogram( fill = "lightblue", color = "darkblue") +
-  labs(
-     title = "Log baseMean for all significant genes",
-     x = "\nLog10 (baseMean + 1)")+
-      theme_minimal()
-
-p|b
-```
-
--   The distribution of p-values from the Wald test was approximately uniform, with no enrichment of low p-values
--   The log(baseMean) distribution for significant genes displayed moderate to high expression levels
-
-##### **Significantly differentially expressed genes in brain**<br>Cre-AAV and GFP control <br>(FDR \< 0.05, \|log2FC\| \> 1) {.unnumbered}
-
-```{r}
-
-# Display significant genes in a table
-significant_genes_female_brain |> 
-  select(gene,baseMean, log2FoldChange, padj) |>
-  arrange(padj) |> 
-  kable(digits = 2) |> 
-  kable_styling(full_width = F) |> 
-  scroll_box(width = "100%", height = "400px")
-
-```
-
-#### Common DEGs in males and females
-
-Differential expression analysis comparing Cre-AAV and GFP control groups in brain identified a large number of significantly altered transcripts (FDR < 0.01, |log₂FC| > 1). To focus on robust and biologically relevant signals, we intersected DEGs detected in both male and female mice. 
-
-```{r}
-common_degs_brain <- intersect(significant_genes_male_brain$gene, significant_genes_female_brain$gene)
-common_degs_brain_df <- data.frame(gene = common_degs_brain)  
-```
-
-There were 0 common DEGs shared in male and females. The majority corresponded to ribosomal and uncharacterized pseudogenes, reflecting global transcriptional perturbations rather than specific pathway activation.  
-
-```{r}
-#| eval: false
+#|fig-width: 9
+#| fig-height: 6
 # Create a volcano plot for differentially expressed genes (DEGs) in the liver
-EnhancedVolcano(res,
+EnhancedVolcano(clean_res_brain_all,
     # Label the points on the plot with gene names from the rownames of res_sc
-    lab = rownames(res),
+    lab = clean_res_liver_all$clean,
     # Set the main title of the plot
     title = "Differentially expressed genes (DEGs)",
     # Set the subtitle indicating the comparison groups
@@ -437,7 +301,7 @@ EnhancedVolcano(res,
     # Set the size and face of the labels on the plot
     labSize = 5, labFace = "italic",
     # Position the legend to the right of the plot
-    legendPosition = 'no',
+     legendPosition = 'no',
     # Draw lines connecting labels to their corresponding points
     drawConnectors = TRUE,
     # Connect labels to points in both directions (from left and right)
@@ -454,8 +318,21 @@ EnhancedVolcano(res,
     # Set the x-axis to represent log2 fold change
     x = 'log2FoldChange',
     # Set the y-axis to represent the p-value
-    y = 'pvalue'
+    y = 'pvalue',
     #ylim = c(0,8)
-    #xlim = c(-3,2)
+    xlim = c(-11,11)
 )
+```
+
+### Common DEGs in liver and brain
+
+```{r}
+common_degs <- intersect(clean_n_brain_all_2$gene, clean_n_liver_all_2$gene)
+
+
+```
+
+To identify core molecular responses to ApoE isoform conversion that occur independently of tissue context, we intersected the lists of high-confidence DEGs from liver and brain. In the batch-adjusted analysis, only `r length(common_degs)` genes were significantly differentially expressed in both tissues: 
+```{r}
+cat(paste(common_degs, collapse = ", "))
 ```

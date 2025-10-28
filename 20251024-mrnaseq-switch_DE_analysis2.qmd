@@ -49,6 +49,15 @@ dds <- collapseReplicates(dds_keep,
 Genes with very low read counts were excluded to minimize technical noise. After filtering for a minimum of 20 counts in at least five samples, approximately `r nrow(dds)` genes were retained for downstream analysis.
 
 ## Differential expression analysis between Cre-AAV and GFP control groups in switch mice
+
+Differential expression analysis was performed using DESeq2 with a design formula that explicitly modeled batch effects: `~ batch + Sex + group`. GFP Control was set as the reference level for treatment comparison.
+
+Our design involves the same mice measured across batches (paired structure) nested within a batch-treatment confound. The ideal model would be a mixed-effects model with random effects: `Treatment + (1|MouseID) + (1|Batch)` 
+DESeq2's standard framework assumes all samples are independent and cannot model the correlation between repeated measurements of the same biological individual through random effects (e.g., mouse-specific baseline expression). Retaining both measurements would violate this independence assumption. While removing Batch 1 duplicates would resolve this, __we chose to collapse cross-batch measurements by averaging to preserve all sequencing data__. This approach treats each mouse as a single biological unit, though it reduces variance by averaging over real batch-to-batch measurement variability. While this reduces variance by averaging over real batch-to-batch variability (potentially anti-conservative), PCA showed minimal batch effects.
+
+Significance thresholds were set at FDR < 0.05 and |log₂FC| > 1, with subsequent filtering to remove pseudogenes, unannotated loci, mitochondrial genes, and ribosomal protein genes.
+
+
 ### Liver
 
 

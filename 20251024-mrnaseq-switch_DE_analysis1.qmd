@@ -317,7 +317,7 @@ clean_n_brain_all <- clean_res_brain_all |>
 
 ```
 
-After applying the same filtering criteria to exclude pseudogenes, unannotated loci, mitochondrial genes, and ribosomal protein genes, we retained `r nrow(clean_n_liver_all)` high-confidence nuclear genes that showed consistent dysregulation in brain tissue following Cre-mediated ApoE4→ApoE2 conversion, adjusted for sex.
+After applying the same filtering criteria to exclude pseudogenes, unannotated loci, mitochondrial genes, and ribosomal protein genes, we retained `r nrow(clean_n_brain_all)` high-confidence nuclear genes that showed consistent dysregulation in brain tissue following Cre-mediated ApoE4→ApoE2 conversion, adjusted for sex.
 
 ```{r}
 clean_n_brain_all |> 

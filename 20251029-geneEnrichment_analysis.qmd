@@ -1,0 +1,25 @@
+---
+title: "Gene Enrichment Analysis"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  messages: false
+format: html
+---
+
+
+```{r}
+# https://biit.cs.ut.ee/gprofiler/gost
+# https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
+library(gprofiler2)
+# https://learn.gencore.bio.nyu.edu/rna-seq-analysis/gene-set-enrichment-analysis/
+# https://learn.gencore.bio.nyu.edu/rna-seq-analysis/over-representation-analysis/
+
+# Biomedical Knowledge Mining using GOSemSim and clusterProfiler
+# https://yulab-smu.top/biomedical-knowledge-mining-book/index.html
+#BiocManager::install("GOSemSim")
+
+
+```

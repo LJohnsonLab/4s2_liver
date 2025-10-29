@@ -1,0 +1,272 @@
+---
+title: "Comparison of Differential Expression Analysis Methods"
+subtitle: "Venn diagram analysis of DEGs across analytical approaches"
+date: today
+toc: true
+toc-depth: 3
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  message: false   
+format: html
+---
+
+## Overview
+
+We compared three analytical approaches for identifying differentially expressed genes (DEGs) in liver tissue in response to Cre-mediated ApoE4→ApoE2 conversion:
+
+1. **Method 1: Combined batches without batch adjustment** (`~ Sex + group`)
+   - Cross-batch replicates collapsed by averaging
+   - Significance: FDR < 0.01, |log₂FC| > 1
+   
+2. **Method 2: Combined batches with batch adjustment** (`~ batch + Sex + group`)
+   - Cross-batch replicates collapsed by averaging
+   - Significance: FDR < 0.01, |log₂FC| > 1
+   
+3. **Method 3: Batch 2 only** (`~ Sex + group`)
+   - No cross-batch replicates; complete independence
+   - Significance: FDR < 0.01, |log₂FC| > 1
+```{r}
+#| label: setup
+library(tidyverse)
+library(ggVennDiagram)
+library(kableExtra)
+library(patchwork)
+
+# Set plot theme
+theme_set(theme_minimal())
+```
+```{r}
+#| label: load-data
+# Load DEG lists from CSV files
+degs_method1 <- read_csv("data/clean_DEGs_liver_1.csv", show_col_types = FALSE)
+degs_method2 <- read_csv("data/clean_DEGs_liver_2.csv", show_col_types = FALSE)
+degs_method3 <- read_csv("data/clean_DEGs_liver_3.csv", show_col_types = FALSE)
+
+# Extract gene names (assuming first column or a column named 'gene')
+genes_method1 <- degs_method1$gene
+genes_method2 <- degs_method2$gene
+genes_method3 <- degs_method3$gene
+```
+
+## Liver
+### Summary of Methods
+```{r}
+#| label: summary-table
+summary_df <- data.frame(
+  Method = c("Method 1: Combined, no batch adj.",
+             "Method 2: Combined, with batch adj.", 
+             "Method 3: Batch 2 only"),
+  Design = c("~ Sex + group", "~ batch + Sex + group", "~ Sex + group"),
+  Samples = c("Both batches (collapsed replicated)", 
+              "Both batches (collapsed replicated)", 
+              "Batch 2 only"),
+  `DEGs` = c(length(genes_method1),
+             length(genes_method2),
+             length(genes_method3))
+)
+
+summary_df |>
+  kable(col.names = c("Method", "Design Formula", "Samples Used", 
+                       "DEGs in Liver")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                full_width = FALSE)
+```
+
+### Venn Diagram: All Three Methods
+```{r}
+#| label: venn-all-methods
+#| fig-width: 9
+#| fig-height: 7
+
+# Create list for Venn diagram
+deg_list <- list(
+  "Method 1\nNo batch adj" = genes_method1,
+  "Method 2\nBatch adj." = genes_method2,
+  "Method 3\nBatch 2 only" = genes_method3
+)
+
+# Create Venn diagram using ggVennDiagram
+ggVennDiagram(deg_list, 
+              label_alpha = 0,
+              label_size = 5,
+              label_color = "black",
+              category.names = names(deg_list),
+              set_size = 5,
+              edge_size = 1) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  scale_x_continuous(expand = expansion(mult = 0.2)) +  # Add more space
+  labs(title = "Overlap of DEGs in Liver Across Three Analytical Methods",
+       subtitle = "Filtered genes",
+       fill = "Count") +
+  theme(legend.position = "right",
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, hjust = 0.5),
+        plot.margin = margin(10, 10, 10, 10))
+```
+
+### Core High-Confidence DEGs
+
+Genes identified by **all three methods** represent the most robust findings, independent of analytical approach:
+```{r}
+#| label: core-genes
+# Find intersection of all three methods
+core_degs <- Reduce(intersect, list(genes_method1, 
+                                     genes_method2, 
+                                     genes_method3))
+
+cat(paste("###", length(core_degs), "genes were identified by all three methods\n\n"))
+
+if(length(core_degs) > 0) {
+  cat(paste(sort(core_degs), collapse = ", "))
+}
+```
+--
+```{r}
+#| label: core-gene-table
+if(length(core_degs) > 0) {
+  # Extract information for core genes from each method
+  core_m1 <- degs_method1 |> filter(gene %in% core_degs)
+  core_m2 <- degs_method2 |> filter(gene %in% core_degs)
+  core_m3 <- degs_method3 |> filter(gene %in% core_degs)
+  
+  # Merge data
+  core_comparison <- core_m1 |>
+    select(gene, log2FoldChange, padj) |>
+    dplyr::rename(Method1_log2FC = log2FoldChange, Method1_padj = padj) |>
+    left_join(
+      core_m2 |> select(gene, log2FoldChange, padj) |>
+        dplyr::rename(Method2_log2FC = log2FoldChange, Method2_padj = padj),
+      by = "gene"
+    ) |>
+    left_join(
+      core_m3 |> select(gene, log2FoldChange, padj) |>
+        dplyr::rename(Method3_log2FC = log2FoldChange, Method3_padj = padj),
+      by = "gene"
+    ) |>
+    arrange(Method1_padj)
+  
+  core_comparison |>
+    kable(digits = 3, 
+          col.names = c("Gene", 
+                       "log₂FC", "FDR",
+                       "log₂FC", "FDR", 
+                       "log₂FC", "FDR")) |>
+    kable_styling(full_width = FALSE, 
+                  bootstrap_options = c("striped", "hover")) |>
+    add_header_above(c(" " = 1, "Method 1" = 2, "Method 2" = 2, "Method 3" = 2)) 
+}
+```
+
+## Brain
+### Summary of Methods
+```{r}
+#| label: summary-table-brain
+# Load DEG lists from CSV files for brain
+degs_brain_method1 <- read_csv("data/clean_DEGs_brain_1.csv", show_col_types = FALSE)
+degs_brain_method2 <- read_csv("data/clean_DEGs_brain_2.csv", show_col_types = FALSE)
+
+# Extract gene names
+genes_brain_method1 <- degs_brain_method1$gene
+genes_brain_method2 <- degs_brain_method2$gene
+
+summary_df_brain <- data.frame(
+  Method = c("Method 1: Combined, no batch adj.",
+             "Method 2: Combined, with batch adj.", 
+             "Method 3: Batch 2 only"),
+  Design = c("~ Sex + group", "~ batch + Sex + group", "~ Sex + group"),
+  Samples = c("Both batches (collapsed replicated)", 
+              "Both batches (collapsed replicated)", 
+              "Batch 2 only"),
+  `DEGs` = c(length(genes_brain_method1),
+             length(genes_brain_method2),
+             0)
+)
+
+summary_df_brain |>
+  kable(col.names = c("Method", "Design Formula", "Samples Used", 
+                       "DEGs in Brain")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                full_width = FALSE)
+```
+
+### Venn Diagram: Methods 1 and 2
+
+Since Method 3 (Batch 2 only) yielded no significant DEGs in brain tissue, we compare only the two combined-batch approaches:
+```{r}
+#| label: venn-brain-methods
+#| fig-width: 8
+#| fig-height: 6
+
+# Create list for Venn diagram (only 2 methods)
+deg_list_brain <- list(
+  "Method 1\nNo batch adj" = genes_brain_method1,
+  "Method 2\nBatch adj." = genes_brain_method2
+)
+
+# Create Venn diagram using ggVennDiagram
+ggVennDiagram(deg_list_brain, 
+              label_alpha = 0,
+              label_size = 5.5,
+              label_color = "black",
+              category.names = names(deg_list_brain),
+              set_size = 5.5,
+              edge_size = 1.2) +
+  scale_fill_gradient(low = "white", high = "coral") +
+  scale_x_continuous(expand = expansion(mult = 0.25)) +
+  labs(title = "Overlap of DEGs in Brain: Methods 1 vs 2",
+       subtitle = "Filtered genes (Method 3 yielded no DEGs)",
+       fill = "Count") +
+  theme(legend.position = "right",
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, hjust = 0.5),
+        plot.margin = margin(10, 10, 10, 10))
+```
+
+### Core High-Confidence DEGs in Brain
+
+Genes identified by **both methods** represent robust findings in brain tissue:
+```{r}
+#| label: core-genes-brain
+# Find intersection of the two methods
+core_degs_brain <- intersect(genes_brain_method1, genes_brain_method2)
+
+cat(paste("###", length(core_degs_brain), "genes were identified by both methods\n\n"))
+
+if(length(core_degs_brain) > 0) {
+  cat(paste(sort(core_degs_brain), collapse = ", "))
+}
+```
+
+#### Details of Core Brain DEGs
+```{r}
+#| label: core-gene-table-brain
+if(length(core_degs_brain) > 0) {
+  # Extract information for core genes from each method
+  core_brain_m1 <- degs_brain_method1 |> filter(gene %in% core_degs_brain)
+  core_brain_m2 <- degs_brain_method2 |> filter(gene %in% core_degs_brain)
+  
+  # Merge data
+  core_comparison_brain <- core_brain_m1 |>
+    dplyr::select(gene, log2FoldChange, padj) |>
+    dplyr::rename(Method1_log2FC = log2FoldChange, Method1_padj = padj) |>
+    left_join(
+      core_brain_m2 |> dplyr::select(gene, log2FoldChange, padj) |>
+        dplyr::rename(Method2_log2FC = log2FoldChange, Method2_padj = padj),
+      by = "gene"
+    ) |>
+    arrange(Method1_padj)
+  
+  core_comparison_brain |>
+    kable(digits = 3, 
+          col.names = c("Gene", 
+                       "log₂FC", "FDR",
+                       "log₂FC", "FDR")) |>
+    kable_styling(full_width = FALSE, 
+                  bootstrap_options = c("striped", "hover")) |>
+    add_header_above(c(" " = 1, "Method 1" = 2, "Method 2" = 2)) |>
+    scroll_box(width = "100%", height = "400px")
+}
+```
+

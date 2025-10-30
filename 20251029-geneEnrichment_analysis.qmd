@@ -11,15 +11,265 @@ format: html
 
 
 ```{r}
+# gprofiler2: Interface to g:Profiler for functional enrichment analysis
 # https://biit.cs.ut.ee/gprofiler/gost
 # https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
 library(gprofiler2)
-# https://learn.gencore.bio.nyu.edu/rna-seq-analysis/gene-set-enrichment-analysis/
-# https://learn.gencore.bio.nyu.edu/rna-seq-analysis/over-representation-analysis/
 
-# Biomedical Knowledge Mining using GOSemSim and clusterProfiler
-# https://yulab-smu.top/biomedical-knowledge-mining-book/index.html
-#BiocManager::install("GOSemSim")
+# fgsea: Fast Gene Set Enrichment Analysis
+# https://bioconductor.org/packages/release/bioc/vignettes/fgsea/inst/doc/fgsea-tutorial.html
+library(fgsea)
 
+# msigdbr: Access to MSigDB gene sets for multiple species
+library(msigdbr)
+
+# Data manipulation and visualization
+library(tidyverse)
+library(kableExtra)
 
 ```
+
+To identify biological pathways and processes affected by Cre-mediated ApoE4→ApoE2 conversion in liver tissue, we performed complementary enrichment analyses using the high-confidence differentially expressed genes from Method 1 (combined batches, no batch adjustment).
+
+## Liver
+
+### Over-Representation Analysis (ORA)
+```{r}
+#| fig-width: 10
+#| out-width: "100%"
+
+# Load clean DEGs from method 1 for liver
+# Sort by absolute fold change to prioritize genes with largest effect sizes
+results_liver <- read_csv("data/clean_DEGs_liver_1.csv") |> 
+  arrange(desc(abs(log2FoldChange)))
+
+# Perform over-representation analysis using g:Profiler
+# Tests whether DEGs are enriched in functional categories compared to background
+gost_liver <- gost(
+  query = results_liver$gene,           # List of significant DEGs
+  organism = "mmusculus",                # Mouse
+  ordered_query = TRUE,                  # Preserve gene ranking by fold change
+  exclude_iea = FALSE,                   # Include electronically inferred annotations
+  user_threshold = 0.05,                 # Significance threshold
+  significant = TRUE,                    # Return only significant terms
+  correction_method = "g_SCS",           # Multiple testing correction (g:Profiler default)
+  sources = c("GO:BP"),                  # Test only Gene Ontology Biological Processes
+  domain_scope = "annotated"             # Use all annotated genes as background
+)
+
+# Extract results table
+tabla <- gost_liver$result 
+
+# Create Manhattan plot of enrichment results
+p <- gostplot(gostres = gost_liver, 
+              capped = TRUE,                 # Cap very small p-values for visualization
+              interactive = FALSE) +
+     ylim(0, 4)                              # Limit y-axis range
+
+# Highlight specific terms of interest in the plot
+pp <- publish_gostplot(
+  p,
+  highlight_terms = c("GO:0032805", "GO:0006790"),
+  width = NA,
+  height = NA
+) 
+
+```
+
+Over-representation analysis using `g:Profiler2` identified two significantly enriched Gene Ontology Biological Process terms among the 63 liver DEGs (Method 1, FDR < 0.01, |log₂FC| > 1). The most significant enrichment was for positive regulation of low-density lipoprotein particle receptor catabolic process (GO:0032805, p = 1.7×10⁻², 3 genes), directly implicating lipoprotein receptor regulation in the transcriptional response. 
+
+The second enriched term was sulfur compound metabolic process (GO:0006790, p = 4.5×10⁻², 323 genes), a broad metabolic category that may reflect secondary metabolic remodeling following altered lipid handling. While this enrichment is less specific, it suggests that ApoE isoform conversion triggers broader metabolic adaptations beyond lipid metabolism alone.  
+
+The limited number of significantly enriched terms in ORA likely reflects the modest size of the high-confidence DEG list (63 genes after stringent filtering), which reduces statistical power to detect over-representation in narrowly defined functional categories. This motivated the use of Gene Set Enrichment Analysis as a complementary approach that leverages information from all genes rather than only those passing significance thresholds.
+
+### Gene Set Enrichment Analysis (GSEA)
+Gene Set Enrichment Analysis (GSEA) using the complete ranked gene list identified five significantly enriched pathways (FDR < 0.01), all related to mitochondrial oxidative metabolism:
+
+```{r}
+#| fig-width: 10
+
+
+#################################################################
+### Mouse Gene Sets from MSigDB #################################
+### https://www.gsea-msigdb.org/gsea/msigdb/mouse/genesets.jsp ##
+#################################################################
+
+set.seed(42)  # Set seed for reproducibility
+
+# Load complete differential expression results (all genes, not just significant)
+liver <- read_csv("data/results_liver_1.csv")
+
+# Create ranked gene list based on log2 fold change
+# GSEA uses the ranking of ALL genes, not just significant ones
+gene_ranks <- liver$log2FoldChange
+names(gene_ranks) <- liver$gene
+gene_ranks <- sort(gene_ranks, decreasing = TRUE)  # Sort high to low
+
+# Retrieve Gene Ontology Biological Process gene sets from MSigDB
+# MSigDB Collection M5 = ontology gene sets
+# Subcollection BP = Biological Process
+gene_sets <- msigdbr(
+  species = "Mus musculus",      # Mouse
+  db_species = "MM",              # Mouse species code
+  collection = "M5",              # GO gene sets
+  subcollection = "BP"            # Biological Process ontology
+)
+
+# Convert to list format required by fgsea
+# Each element = one gene set (pathway) with its member genes
+gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
+
+# Run Fast Gene Set Enrichment Analysis
+# Tests whether genes in each pathway are randomly distributed in the ranked list
+# or concentrated at the top (upregulated) or bottom (downregulated)
+fgsea_results <- fgsea(
+  pathways = gene_sets_list,      # Gene sets to test
+  stats = gene_ranks,             # Ranked gene list
+  eps = 0.0,                      # Precision for p-value estimation (0 = exact)
+  minSize = 15,                   # Minimum genes per pathway
+  maxSize = 500                   # Maximum genes per pathway
+)
+
+# Filter and format results
+gsea <- fgsea_results |> 
+  arrange(padj) |>                      # Sort by adjusted p-value
+  filter(padj < 0.05) |>                # Keep only significant pathways
+  select(-leadingEdge) |>                # Remove gene list column for display
+  arrange(desc(NES))                     # Sort by normalized enrichment score
+# Display results table
+kbl(gsea |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+Notably, all five pathways exhibited positive enrichment scores, indicating coordinated upregulation of genes involved in these processes following ApoE4→ApoE2 conversion. The enrichment plot for proton motive force-driven ATP synthesis illustrated that genes in this pathway were strongly concentrated among highly upregulated genes, with peak enrichment occurring within the top ~25% of ranked genes. This distribution pattern indicates genuine coordinated regulation rather than random association.
+
+#### APOE2 Enhances Mitochondrial ATP Production{.unnumbered}
+```{r}
+#| fig-height: 4
+plotEnrichment(gene_sets_list[["GOBP_PROTON_MOTIVE_FORCE_DRIVEN_ATP_SYNTHESIS"]], 
+               gene_ranks) +
+  labs(title = "GO:BP Proton Motive Force Driven ATP Synthesis",
+       subtitle = "NES = 2.15, padj = 0.0025")
+```
+
+The convergent enrichment of multiple interconnected mitochondrial pathways—respiratory chain complex assembly (which builds the electron transport chain), NADH dehydrogenase complex assembly (Complex I assembly specifically), proton motive force-driven ATP synthesis (ATP synthase function), and oxidative phosphorylation (the overall process)—suggests a coherent biological program. Specifically, these findings indicate that ApoE2 expression enhances mitochondrial bioenergetic capacity compared to ApoE4 expression in hepatocytes.
+
+The inclusion of "translation at synapse" among enriched pathways was unexpected in a liver tissue analysis, as this term typically applies to neuronal tissues. This likely represents either: (1) annotation artifacts where genes involved in general translational machinery are also annotated to synapse-specific processes, or (2) genuine enrichment of ribosomal/translational components that support increased protein synthesis for mitochondrial biogenesis
+
+## Brain
+
+### Over-Representation Analysis (ORA)
+
+Over-representation analysis of the 69 brain DEGs (Method 1, FDR < 0.01, |log₂FC| > 1) identified ten significantly enriched Gene Ontology terms spanning multiple functional domains. Unlike the liver, where enrichment centered on lipoprotein metabolism, the brain showed a diverse functional landscape.
+
+This heterogeneous enrichment pattern suggests that the transcriptional response to ApoE4→ApoE2 conversion in brain affects multiple distinct biological systems rather than a single coherent pathway. The prominence of neuroendocrine-related terms (neurohypophyseal hormone activity, vasopressin receptor binding, maternal aggressive behavior) is particularly notable and may reflect effects on hypothalamic-pituitary signaling. The enrichment of basic metabolic pathways (glycolysis, amino acid biosynthesis) alongside behavioral and neuroendocrine terms suggests broad metabolic and functional remodeling in response to ApoE isoform switching.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| out-width: "100%"
+
+# Load clean DEGs from method 1 for the brain
+# Sort by absolute fold change to prioritize genes with largest effect sizes
+results_brain <- read_csv("data/clean_DEGs_brain_1.csv") |> 
+  arrange(desc(abs(log2FoldChange)))
+
+# Perform over-representation analysis using g:Profiler
+# Tests whether DEGs are enriched in functional categories compared to background
+gost_brain <- gost(
+  query = results_brain$gene,           # List of significant DEGs
+  organism = "mmusculus",                # Mouse
+  ordered_query = TRUE,                  # Preserve gene ranking by fold change
+  exclude_iea = FALSE,                   # Include electronically inferred annotations
+  user_threshold = 0.05,                 # Significance threshold
+  significant = TRUE,                    # Return only significant terms
+  correction_method = "g_SCS",           # Multiple testing correction (g:Profiler default)
+  #sources = c("GO:BP"),                  # Test only Gene Ontology Biological Processes
+  domain_scope = "annotated"             # Use all annotated genes as background
+)
+
+# Extract results table
+tabla_brain <- gost_brain$result 
+
+# Create Manhattan plot of enrichment results
+p <- gostplot(gostres = gost_brain, 
+              capped = TRUE,                 # Cap very small p-values for visualization
+              interactive = FALSE) +
+     ylim(0, 4)                              # Limit y-axis range
+
+# Highlight specific terms of interest in the plot
+pp <- publish_gostplot(
+  p,
+  highlight_terms = gost_brain$result$term_id,
+  width = NA,
+  height = NA
+) 
+
+```
+
+
+
+### Gene Set Enrichment Analysis (GSEA)
+
+GSEA of brain tissue revealed seventeen significantly enriched pathways (FDR < 0.05), predominantly related to chromatin regulation, neuronal structure, and gene expression control:
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+
+#################################################################
+### Mouse Gene Sets from MSigDB #################################
+### https://www.gsea-msigdb.org/gsea/msigdb/mouse/genesets.jsp ##
+#################################################################
+
+set.seed(42)  # Set seed for reproducibility
+
+# Load complete differential expression results (all genes, not just significant)
+brain <- read_csv("data/results_brain_1.csv")
+
+# Create ranked gene list based on log2 fold change
+# GSEA uses the ranking of ALL genes, not just significant ones
+gene_ranks <- brain$log2FoldChange
+names(gene_ranks) <- brain$gene
+gene_ranks <- sort(gene_ranks, decreasing = TRUE)  # Sort high to low
+
+# Retrieve Gene Ontology Biological Process gene sets from MSigDB
+# MSigDB Collection M5 = ontology gene sets
+# Subcollection BP = Biological Process
+gene_sets <- msigdbr(
+  species = "Mus musculus",      # Mouse
+  db_species = "MM",              # Mouse species code
+  collection = "M5",              # GO gene sets
+  subcollection = "BP"            # Biological Process ontology
+)
+
+# Convert to list format required by fgsea
+# Each element = one gene set (pathway) with its member genes
+gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
+
+# Run Fast Gene Set Enrichment Analysis
+# Tests whether genes in each pathway are randomly distributed in the ranked list
+# or concentrated at the top (upregulated) or bottom (downregulated)
+fgsea_results <- fgsea(
+  pathways = gene_sets_list,      # Gene sets to test
+  stats = gene_ranks,             # Ranked gene list
+  eps = 0.0,                      # Precision for p-value estimation (0 = exact)
+  minSize = 15,                   # Minimum genes per pathway
+  maxSize = 500                   # Maximum genes per pathway
+)
+
+# Filter and format results
+gsea <- fgsea_results |> 
+  arrange(padj) |>                      # Sort by adjusted p-value
+  filter(padj < 0.05) |>                # Keep only significant pathways
+  select(-leadingEdge) |>                # Remove gene list column for display
+  arrange(desc(NES))                     # Sort by normalized enrichment score
+# Display results table
+kbl(gsea |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+All pathways exhibited positive enrichment scores, indicating coordinated upregulation of genes in these functional categories following ApoE4→ApoE2 conversion. The enrichment pattern in brain contrasts markedly with liver, where mitochondrial oxidative metabolism dominated. Instead, brain tissue shows coordinated changes in three major functional domains: (1) chromatin organization and epigenetic regulation, suggesting remodeling of gene expression programs; (2) cytochrome P450-mediated metabolism of arachidonic acid and xenobiotics, implicating changes in lipid mediator synthesis and detoxification capacity; and (3) neuronal structural plasticity and synaptic organization, indicating potential effects on neural circuit architecture.

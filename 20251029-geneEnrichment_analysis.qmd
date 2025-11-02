@@ -26,7 +26,7 @@ library(msigdbr)
 # Data manipulation and visualization
 library(tidyverse)
 library(kableExtra)
-
+library(UpSetR)
 ```
 
 To identify biological pathways and processes affected by Cre-mediated ApoE4→ApoE2 conversion in liver tissue, we performed complementary enrichment analyses using the high-confidence differentially expressed genes from Method 1 (combined batches, no batch adjustment).
@@ -260,12 +260,16 @@ fgsea_results <- fgsea(
   maxSize = 500                   # Maximum genes per pathway
 )
 
+
+
 # Filter and format results
 gsea <- fgsea_results |> 
   arrange(padj) |>                      # Sort by adjusted p-value
   filter(padj < 0.05) |>                # Keep only significant pathways
-  select(-leadingEdge) |>                # Remove gene list column for display
   arrange(desc(NES))                     # Sort by normalized enrichment score
+
+
+
 # Display results table
 kbl(gsea |> select(pathway, NES, padj, size),
   digits = 3) |>
@@ -273,3 +277,90 @@ kbl(gsea |> select(pathway, NES, padj, size),
 ```
 
 All pathways exhibited positive enrichment scores, indicating coordinated upregulation of genes in these functional categories following ApoE4→ApoE2 conversion. The enrichment pattern in brain contrasts markedly with liver, where mitochondrial oxidative metabolism dominated. Instead, brain tissue shows coordinated changes in three major functional domains: (1) chromatin organization and epigenetic regulation, suggesting remodeling of gene expression programs; (2) cytochrome P450-mediated metabolism of arachidonic acid and xenobiotics, implicating changes in lipid mediator synthesis and detoxification capacity; and (3) neuronal structural plasticity and synaptic organization, indicating potential effects on neural circuit architecture.
+
+#### Visualizing Leading Edge Gene Overlaps with UpSet Plot
+
+
+To understand the relationships between enriched pathways and identify genes contributing to multiple functional categories, we visualized the overlap of leading-edge genes across the significantly enriched brain pathways using an UpSet plot. Leading-edge genes are those contributing most strongly to each pathway's enrichment signal (the subset of genes appearing before the peak enrichment score in the GSEA running sum).
+
+The UpSet plot revealed extensive sharing of leading-edge genes across pathways, with many genes contributing to multiple functional categories simultaneously. The largest unique gene set (approximately 100 genes) was specific to chromatin remodeling, indicating a substantial group of genes uniquely involved in epigenetic regulation. However, numerous genes appeared in multiple pathway intersections
+
+
+```{r}
+#| column: page
+#| fig-width: 14
+#| fig-height: 7
+
+
+leadingEdge <- gsea$leadingEdge |> 
+  set_names(gsea$pathway)
+
+
+# Create UpSet plot
+upset(fromList(leadingEdge), 
+      order.by = "freq",
+      nsets = length(leadingEdge),
+      nintersects = 30,
+      empty.intersections = "on")
+
+
+```
+
+#### Reducing Redundant Pathways with `collapsePathways`
+
+
+Given the extensive overlap in leading-edge genes between pathways, we applied the `collapsePathways` function from the `fgsea` package to reduce redundancy and identify independent biological themes. This analysis groups pathways with highly similar gene membership, retaining only the most significantly enriched representative from each cluster.
+
+
+```{r}
+
+# Subset gene_sets_list to only include significant pathways
+gene_sets_significant <- gene_sets_list[gsea$pathway]
+
+
+# Step 3: Run collapsePathways
+# This identifies redundant pathways based on leading edge overlap
+collapsed <- collapsePathways(
+  fgseaRes = fgsea_results |> filter(padj<0.05),     # Your fgsea results (filtered)
+  pathways = gene_sets_significant,     # Gene sets (filtered to significant)
+  pval.threshold = 0.01,               # P-value threshold for significance
+  stats = gene_ranks                    # Same ranked gene list used in fgsea
+)
+
+# Step 4: Extract the main (representative) pathways
+main_pathways <- collapsed$mainPathways
+
+# Step 5: Filter your results to keep only main pathways
+gsea_collapsed <- fgsea_results |> 
+  filter(padj<0.05) |>
+  filter(pathway %in% main_pathways) |>
+  arrange(desc(NES))
+
+# View how many pathways were collapsed
+cat("Original significant pathways:", nrow(gsea), "\n")
+cat("After collapsing:", nrow(gsea_collapsed), "\n")
+
+# Display results table
+kbl(gsea_collapsed |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+```
+
+**Collapsed pathways** (redundant with retained representatives):
+- Multiple chromatin-related terms collapsed into "regulation of chromatin organization" and "chromatin remodeling"
+- Several mRNA metabolism terms collapsed into "regulation of mRNA metabolic process" and "mRNA processing"
+- Various dendritic and synaptic terms collapsed into "dendrite development," "synapse assembly," and "regulation of synapse structure or activity"
+- Xenobiotic-related pathways (epoxygenase P450, arachidonic acid metabolism, cellular response to xenobiotic stimulus) collapsed into "xenobiotic metabolic process"
+
+This collapsed set of eleven pathways provides a clearer, non-redundant summary of the brain's transcriptional response while preserving all major biological themes. The analysis confirms that the brain response encompasses four primary functional domains:
+
+1. **Epigenetic regulation** (chromatin organization and remodeling) - 2 pathways
+2. **RNA processing and metabolism** (splicing and mRNA regulation) - 2 pathways  
+3. **Neuronal structure and function** (dendrite development, synapse assembly/regulation, action potential) - 4 pathways
+4. **Metabolic processes** (xenobiotic metabolism, uronic acid metabolism) - 2 pathways
+5. **Specialized metabolism** (uronic acid, a component of glycosaminoglycans important for extracellular matrix) - 1 pathway
+
+The retention of both "chromatin organization" and "chromatin remodeling" as independent pathways despite their conceptual similarity suggests these represent distinct aspects of epigenetic regulation (organizational state versus active remodeling machinery). Similarly, the preservation of multiple synaptic/dendritic pathways indicates genuine enrichment across different aspects of neuronal structural plasticity rather than redundant detection of the same underlying biology.
+
+This pathway reduction analysis strengthens confidence in the original findings by demonstrating that the breadth of enriched pathways reflects genuine biological diversity in the brain's response rather than statistical artifacts arising from pathway overlap in gene set databases.

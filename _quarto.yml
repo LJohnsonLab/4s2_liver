@@ -21,6 +21,7 @@ book:
       - 20251024-mrnaseq-switch_DE_analysis3.qmd
       - 20251028-comparison3analysis.qmd
       - 20251029-geneEnrichment_analysis.qmd
+      - 20251103-geneEnrichment_analysis_noMitochondria.qmd
     - references.qmd
 
 bibliography: references.bib

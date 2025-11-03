@@ -1,0 +1,237 @@
+---
+title: "Gene Enrichment Analysis II"
+subtitle: "Removed Mitochondria-Related Genes from DESeq2 Results"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  messages: false
+format: html
+---
+
+
+```{r}
+# gprofiler2: Interface to g:Profiler for functional enrichment analysis
+# https://biit.cs.ut.ee/gprofiler/gost
+# https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
+library(gprofiler2)
+
+# fgsea: Fast Gene Set Enrichment Analysis
+# https://bioconductor.org/packages/release/bioc/vignettes/fgsea/inst/doc/fgsea-tutorial.html
+library(fgsea)
+
+# msigdbr: Access to MSigDB gene sets for multiple species
+library(msigdbr)
+
+# Data manipulation and visualization
+library(tidyverse)
+library(kableExtra)
+library(UpSetR)
+```
+
+To identify biological pathways and processes affected by Cre-mediated ApoE4→ApoE2 conversion in liver tissue, we performed complementary enrichment analyses using the high-confidence differentially expressed genes from Method 1 (combined batches, no batch adjustment).
+
+```{r}
+
+# Load complete differential expression results (all genes, not just significant)
+liver_all <- read_csv("data/results_liver_1.csv")
+liver <- liver_all |> 
+  filter(str_starts(gene,"mt-|Mt-",negate = T))  # Remove mitochondrial genes
+
+
+mitochondrial_genes <- setdiff(liver_all$gene, liver$gene)
+
+```
+
+_**The mouse mitochondrial genome encodes 37 genes in total:**_
+
+* Protein-coding genes (13): ND1, ND2, COX1, COX2, ATP8, ATP6, COX3, ND3, ND4L, ND4, ND5, ND6, CYTB*
+
+* Ribosomal RNA genes (2): 12S rRNA (RNR1), 16S rRNA (RNR2)*
+
+* Transfer RNA genes (22): *tRNA-Phe (F), tRNA-Val (V), tRNA-Leu(UUR) (L1), tRNA-Ile (I), tRNA-Gln (Q), tRNA-Met (M), tRNA-Trp (W), tRNA-Ala (A), tRNA-Asn (N), tRNA-Cys (C), tRNA-Tyr (Y), tRNA-Ser(UCN) (S1), tRNA-Asp (D), tRNA-Lys (K), tRNA-Gly (G), tRNA-Arg (R), tRNA-His (H), tRNA-Ser(AGY) (S2), tRNA-Leu(CUN) (L2), tRNA-Thr (T), tRNA-Pro (P), tRNA-Glu (E)*
+
+_**mitochondrial genes found (and removed) from the dataset:**_
+
+
+
+```{r}
+paste(mitochondrial_genes, collapse = ", ")
+```
+
+
+### Gene Set Enrichment Analysis (GSEA)
+
+
+```{r}
+#| fig-width: 10
+
+
+#################################################################
+### Mouse Gene Sets from MSigDB #################################
+### https://www.gsea-msigdb.org/gsea/msigdb/mouse/genesets.jsp ##
+#################################################################
+
+
+  
+# Create ranked gene list based on log2 fold change
+# GSEA uses the ranking of ALL genes, not just significant ones
+gene_ranks <- liver$log2FoldChange
+names(gene_ranks) <- liver$gene
+gene_ranks <- sort(gene_ranks, decreasing = TRUE)  # Sort high to low
+
+
+set.seed(42)  # Set seed for reproducibility
+
+
+# Retrieve Gene Ontology Biological Process gene sets from MSigDB
+# MSigDB Collection M5 = ontology gene sets
+# Subcollection BP = Biological Process
+gene_sets <- msigdbr(
+  species = "Mus musculus",      # Mouse
+  db_species = "MM",              # Mouse species code
+  collection = "M5",              # GO gene sets
+  subcollection = "BP"            # Biological Process ontology
+)
+
+# Convert to list format required by fgsea
+# Each element = one gene set (pathway) with its member genes
+gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
+
+# Run Fast Gene Set Enrichment Analysis
+# Tests whether genes in each pathway are randomly distributed in the ranked list
+# or concentrated at the top (upregulated) or bottom (downregulated)
+fgsea_results <- fgsea(
+  pathways = gene_sets_list,      # Gene sets to test
+  stats = gene_ranks,             # Ranked gene list
+  eps = 0.0,                      # Precision for p-value estimation (0 = exact)
+  minSize = 15,                   # Minimum genes per pathway
+  maxSize = 500                   # Maximum genes per pathway
+)
+
+# Filter and format results
+gsea <- fgsea_results |> 
+  arrange(padj) |>                      # Sort by adjusted p-value
+  filter(padj < 0.05) |>                # Keep only significant pathways
+  select(-leadingEdge) |>                # Remove gene list column for display
+  arrange(desc(NES))                     # Sort by normalized enrichment score
+# Display results table
+kbl(gsea |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+Gene Set Enrichment Analysis (GSEA) using the complete ranked gene list (without the mitochondrial genes) identified `r nrow(gsea)` significantly enriched pathways. 
+
+These pathways encompassed translation at the synapse (NES = 2.092, padj = 0.031), mitochondrial respiratory chain complex assembly (NES = 2.024, padj = 0.026), and NADH dehydrogenase complex assembly (NES = 1.990, padj = 0.037), suggesting that hepatic ApoE2 expression modulates both synaptic protein synthesis and mitochondrial oxidative capacity.
+
+## Brain
+### Gene Set Enrichment Analysis (GSEA)
+
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+
+#################################################################
+### Mouse Gene Sets from MSigDB #################################
+### https://www.gsea-msigdb.org/gsea/msigdb/mouse/genesets.jsp ##
+#################################################################
+
+set.seed(42)  # Set seed for reproducibility
+
+# Load complete differential expression results (all genes, not just significant)
+brain <- read_csv("data/results_brain_1.csv")|> 
+  filter(str_starts(gene,"mt-|Mt-", negate = T))  # Remove mitochondrial genes
+
+# Create ranked gene list based on log2 fold change
+# GSEA uses the ranking of ALL genes, not just significant ones
+gene_ranks <- brain$log2FoldChange
+names(gene_ranks) <- brain$gene
+gene_ranks <- sort(gene_ranks, decreasing = TRUE)  # Sort high to low
+
+# Retrieve Gene Ontology Biological Process gene sets from MSigDB
+# MSigDB Collection M5 = ontology gene sets
+# Subcollection BP = Biological Process
+gene_sets <- msigdbr(
+  species = "Mus musculus",      # Mouse
+  db_species = "MM",              # Mouse species code
+  collection = "M5",              # GO gene sets
+  subcollection = "BP"            # Biological Process ontology
+)
+
+# Convert to list format required by fgsea
+# Each element = one gene set (pathway) with its member genes
+gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
+
+# Run Fast Gene Set Enrichment Analysis
+# Tests whether genes in each pathway are randomly distributed in the ranked list
+# or concentrated at the top (upregulated) or bottom (downregulated)
+fgsea_results <- fgsea(
+  pathways = gene_sets_list,      # Gene sets to test
+  stats = gene_ranks,             # Ranked gene list
+  eps = 0.0,                      # Precision for p-value estimation (0 = exact)
+  minSize = 15,                   # Minimum genes per pathway
+  maxSize = 500                   # Maximum genes per pathway
+)
+
+
+
+# Filter and format results
+gsea <- fgsea_results |> 
+  arrange(padj) |>                      # Sort by adjusted p-value
+  filter(padj < 0.05) |>                # Keep only significant pathways
+  arrange(desc(NES))                     # Sort by normalized enrichment score
+
+
+
+# Display results table
+kbl(gsea |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+GSEA of brain tissue revealed `r nrow(gsea)` significantly enriched pathways.
+
+#### Reducing Redundant Pathways with `collapsePathways`
+
+
+Given the extensive overlap in leading-edge genes between pathways, we applied the `collapsePathways` function from the `fgsea` package to reduce redundancy and identify independent biological themes. This analysis groups pathways with highly similar gene membership, retaining only the most significantly enriched representative from each cluster.
+
+
+```{r}
+
+# Subset gene_sets_list to only include significant pathways
+gene_sets_significant <- gene_sets_list[gsea$pathway]
+
+
+# Step 3: Run collapsePathways
+# This identifies redundant pathways based on leading edge overlap
+collapsed <- collapsePathways(
+  fgseaRes = fgsea_results |> filter(padj<0.05),     # Your fgsea results (filtered)
+  pathways = gene_sets_significant,     # Gene sets (filtered to significant)
+  pval.threshold = 0.01,               # P-value threshold for significance
+  stats = gene_ranks                    # Same ranked gene list used in fgsea
+)
+
+# Step 4: Extract the main (representative) pathways
+main_pathways <- collapsed$mainPathways
+
+# Step 5: Filter your results to keep only main pathways
+gsea_collapsed <- fgsea_results |> 
+  filter(padj<0.05) |>
+  filter(pathway %in% main_pathways) |>
+  arrange(desc(NES))
+
+
+# Display results table
+kbl(gsea_collapsed |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+```
+
+This analysis yielded `r nrow(gsea_collapsed)` representative pathways that captured the major biological processes altered by hepatic ApoE2 expression. The collapsed pathway set retained the most significantly enriched representatives, including chromatin organization and remodeling, xenobiotic and metabolic processes, splicing and mRNA processing, neuronal development, and synaptic function, thereby providing a streamlined view of the fundamental biological processes affected by selective hepatic ApoE isoform conversion.

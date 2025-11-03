@@ -310,5 +310,27 @@
       "__4s2 mice__",
       "<span class='chapter-number'>9</span>  <span class='chapter-title'>Gene Enrichment Analysis</span>"
     ]
+  },
+  {
+    "objectID": "20251103-geneEnrichment_analysis_noMitochondria.html",
+    "href": "20251103-geneEnrichment_analysis_noMitochondria.html",
+    "title": "10  Gene Enrichment Analysis II",
+    "section": "",
+    "text": "10.0.1 Gene Set Enrichment Analysis (GSEA)\nTo identify biological pathways and processes affected by Cre-mediated ApoE4→ApoE2 conversion in liver tissue, we performed complementary enrichment analyses using the high-confidence differentially expressed genes from Method 1 (combined batches, no batch adjustment).\nThe mouse mitochondrial genome encodes 37 genes in total:\nmitochondrial genes found (and removed) from the dataset:\npathway\nNES\npadj\nsize\n\n\n\n\nGOBP_TRANSLATION_AT_SYNAPSE\n2.092\n0.031\n48\n\n\nGOBP_MITOCHONDRIAL_RESPIRATORY_CHAIN_COMPLEX_ASSEMBLY\n2.024\n0.026\n96\n\n\nGOBP_NADH_DEHYDROGENASE_COMPLEX_ASSEMBLY\n1.990\n0.037\n57\nGene Set Enrichment Analysis (GSEA) using the complete ranked gene list (without the mitochondrial genes) identified 3 significantly enriched pathways.\nThese pathways encompassed translation at the synapse (NES = 2.092, padj = 0.031), mitochondrial respiratory chain complex assembly (NES = 2.024, padj = 0.026), and NADH dehydrogenase complex assembly (NES = 1.990, padj = 0.037), suggesting that hepatic ApoE2 expression modulates both synaptic protein synthesis and mitochondrial oxidative capacity.",
+    "crumbs": [
+      "__4s2 mice__",
+      "<span class='chapter-number'>10</span>  <span class='chapter-title'>Gene Enrichment Analysis II</span>"
+    ]
+  },
+  {
+    "objectID": "20251103-geneEnrichment_analysis_noMitochondria.html#brain",
+    "href": "20251103-geneEnrichment_analysis_noMitochondria.html#brain",
+    "title": "10  Gene Enrichment Analysis II",
+    "section": "10.1 Brain",
+    "text": "10.1 Brain\n\n10.1.1 Gene Set Enrichment Analysis (GSEA)\n\n\n\n\n\npathway\nNES\npadj\nsize\n\n\n\n\nGOBP_EPOXYGENASE_P450_PATHWAY\n2.155\n0.015\n26\n\n\nGOBP_ARACHIDONIC_ACID_METABOLIC_PROCESS\n2.136\n0.009\n59\n\n\nGOBP_REGULATION_OF_CHROMATIN_ORGANIZATION\n2.130\n0.015\n35\n\n\nGOBP_XENOBIOTIC_METABOLIC_PROCESS\n2.125\n0.002\n98\n\n\nGOBP_SPLICEOSOMAL_COMPLEX_ASSEMBLY\n2.068\n0.015\n49\n\n\nGOBP_URONIC_ACID_METABOLIC_PROCESS\n2.063\n0.031\n15\n\n\nGOBP_RESPONSE_TO_PROSTAGLANDIN\n2.049\n0.048\n22\n\n\nGOBP_POSITIVE_REGULATION_OF_MRNA_CATABOLIC_PROCESS\n1.877\n0.029\n91\n\n\nGOBP_POSITIVE_REGULATION_OF_MRNA_METABOLIC_PROCESS\n1.857\n0.015\n125\n\n\nGOBP_REGULATION_OF_MRNA_PROCESSING\n1.843\n0.018\n129\n\n\nGOBP_DENDRITE_MORPHOGENESIS\n1.833\n0.003\n188\n\n\nGOBP_CELLULAR_RESPONSE_TO_XENOBIOTIC_STIMULUS\n1.831\n0.015\n153\n\n\nGOBP_REGULATION_OF_MRNA_METABOLIC_PROCESS\n1.814\n0.002\n274\n\n\nGOBP_ACTION_POTENTIAL\n1.806\n0.009\n160\n\n\nGOBP_NEGATIVE_REGULATION_OF_GENE_EXPRESSION_EPIGENETIC\n1.738\n0.025\n145\n\n\nGOBP_DENDRITE_DEVELOPMENT\n1.699\n0.005\n315\n\n\nGOBP_RESPONSE_TO_ALCOHOL\n1.651\n0.038\n166\n\n\nGOBP_SYNAPSE_ASSEMBLY\n1.607\n0.016\n267\n\n\nGOBP_POSTSYNAPSE_ORGANIZATION\n1.574\n0.022\n283\n\n\nGOBP_CHROMATIN_REMODELING\n1.521\n0.003\n472\n\n\nGOBP_REGULATION_OF_SYNAPSE_STRUCTURE_OR_ACTIVITY\n1.455\n0.031\n365\n\n\nGOBP_MRNA_PROCESSING\n1.438\n0.015\n453\n\n\n\n\n\nGSEA of brain tissue revealed 22 significantly enriched pathways.\n\n10.1.1.1 Reducing Redundant Pathways with collapsePathways\nGiven the extensive overlap in leading-edge genes between pathways, we applied the collapsePathways function from the fgsea package to reduce redundancy and identify independent biological themes. This analysis groups pathways with highly similar gene membership, retaining only the most significantly enriched representative from each cluster.\n\n\n\n\n\npathway\nNES\npadj\nsize\n\n\n\n\nGOBP_REGULATION_OF_CHROMATIN_ORGANIZATION\n2.130\n0.015\n35\n\n\nGOBP_XENOBIOTIC_METABOLIC_PROCESS\n2.125\n0.002\n98\n\n\nGOBP_SPLICEOSOMAL_COMPLEX_ASSEMBLY\n2.068\n0.015\n49\n\n\nGOBP_REGULATION_OF_MRNA_METABOLIC_PROCESS\n1.814\n0.002\n274\n\n\nGOBP_ACTION_POTENTIAL\n1.806\n0.009\n160\n\n\nGOBP_DENDRITE_DEVELOPMENT\n1.699\n0.005\n315\n\n\nGOBP_RESPONSE_TO_ALCOHOL\n1.651\n0.038\n166\n\n\nGOBP_SYNAPSE_ASSEMBLY\n1.607\n0.016\n267\n\n\nGOBP_CHROMATIN_REMODELING\n1.521\n0.003\n472\n\n\nGOBP_REGULATION_OF_SYNAPSE_STRUCTURE_OR_ACTIVITY\n1.455\n0.031\n365\n\n\n\n\n\nThis analysis yielded 10 representative pathways that captured the major biological processes altered by hepatic ApoE2 expression. The collapsed pathway set retained the most significantly enriched representatives, including chromatin organization and remodeling, xenobiotic and metabolic processes, splicing and mRNA processing, neuronal development, and synaptic function, thereby providing a streamlined view of the fundamental biological processes affected by selective hepatic ApoE isoform conversion.",
+    "crumbs": [
+      "__4s2 mice__",
+      "<span class='chapter-number'>10</span>  <span class='chapter-title'>Gene Enrichment Analysis II</span>"
+    ]
   }
 ]

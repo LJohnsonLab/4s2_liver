@@ -278,33 +278,7 @@ kbl(gsea |> select(pathway, NES, padj, size),
 
 All pathways exhibited positive enrichment scores, indicating coordinated upregulation of genes in these functional categories following ApoE4→ApoE2 conversion. The enrichment pattern in brain contrasts markedly with liver, where mitochondrial oxidative metabolism dominated. Instead, brain tissue shows coordinated changes in three major functional domains: (1) chromatin organization and epigenetic regulation, suggesting remodeling of gene expression programs; (2) cytochrome P450-mediated metabolism of arachidonic acid and xenobiotics, implicating changes in lipid mediator synthesis and detoxification capacity; and (3) neuronal structural plasticity and synaptic organization, indicating potential effects on neural circuit architecture.
 
-#### Visualizing Leading Edge Gene Overlaps with UpSet Plot
 
-
-To understand the relationships between enriched pathways and identify genes contributing to multiple functional categories, we visualized the overlap of leading-edge genes across the significantly enriched brain pathways using an UpSet plot. Leading-edge genes are those contributing most strongly to each pathway's enrichment signal (the subset of genes appearing before the peak enrichment score in the GSEA running sum).
-
-The UpSet plot revealed extensive sharing of leading-edge genes across pathways, with many genes contributing to multiple functional categories simultaneously. The largest unique gene set (approximately 100 genes) was specific to chromatin remodeling, indicating a substantial group of genes uniquely involved in epigenetic regulation. However, numerous genes appeared in multiple pathway intersections
-
-
-```{r}
-#| column: page
-#| fig-width: 14
-#| fig-height: 7
-
-
-leadingEdge <- gsea$leadingEdge |> 
-  set_names(gsea$pathway)
-
-
-# Create UpSet plot
-upset(fromList(leadingEdge), 
-      order.by = "freq",
-      nsets = length(leadingEdge),
-      nintersects = 30,
-      empty.intersections = "on")
-
-
-```
 
 #### Reducing Redundant Pathways with `collapsePathways`
 

@@ -1,0 +1,567 @@
+---
+title: "Gene Enrichment Analysis III"
+subtitle: "Removed Ribosomal &Mitochondria-Related Genes from DESeq2 Results"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  messages: false
+format: html
+---
+
+```{r}
+# gprofiler2: Interface to g:Profiler for functional enrichment analysis
+# https://biit.cs.ut.ee/gprofiler/gost
+# https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
+library(gprofiler2)
+
+# fgsea: Fast Gene Set Enrichment Analysis
+# https://bioconductor.org/packages/release/bioc/vignettes/fgsea/inst/doc/fgsea-tutorial.html
+library(fgsea)
+
+# msigdbr: Access to MSigDB gene sets for multiple species
+library(msigdbr)
+
+# Data manipulation and visualization
+library(tidyverse)
+library(kableExtra)
+```
+
+To identify biological pathways and processes affected by Cre-mediated ApoE4→ApoE2 conversion in liver tissue, we performed complementary enrichment analyses using the high-confidence differentially expressed genes from Method 1 (combined batches, no batch adjustment).
+
+```{r}
+
+# Load complete differential expression results (all genes, not just significant)
+liver_all <- read_csv("data/results_liver_1.csv")
+liver <- liver_all |> 
+  filter(str_starts(gene,"mt-|Mt-",negate = T)) |> # Remove mitochondrial genes
+  filter(str_starts(gene,"Rps|Rpl",negate = T))  # Remove ribosomal genes
+
+
+mitochondrial_genes <- sum(str_starts(liver_all$gene,"mt-|Mt-"))
+
+ribosomal_genes <- sum(str_starts(liver_all$gene,"Rps|Rpl"))
+
+```
+
+_Removed `r mitochondrial_genes` mitochondrial genes and `r ribosomal_genes` ribosomal genes from the dataset_.
+
+### Gene Set Enrichment Analysis (GSEA)
+
+```{r}
+#| fig-width: 10
+
+
+#################################################################
+### Mouse Gene Sets from MSigDB #################################
+### https://www.gsea-msigdb.org/gsea/msigdb/mouse/genesets.jsp ##
+#################################################################
+
+
+  
+# Create ranked gene list based on log2 fold change
+# GSEA uses the ranking of ALL genes, not just significant ones
+gene_ranks <- liver$log2FoldChange
+names(gene_ranks) <- liver$gene
+gene_ranks <- sort(gene_ranks, decreasing = TRUE)  # Sort high to low
+
+
+set.seed(42)  # Set seed for reproducibility
+
+
+# Retrieve Gene Ontology Biological Process gene sets from MSigDB
+# MSigDB Collection M5 = ontology gene sets
+# Subcollection BP = Biological Process
+gene_sets <- msigdbr(
+  species = "Mus musculus",      # Mouse
+  db_species = "MM",              # Mouse species code
+  collection = "M5",              # GO gene sets
+  subcollection = "BP"            # Biological Process ontology
+)
+
+# Convert to list format required by fgsea
+# Each element = one gene set (pathway) with its member genes
+gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
+
+# Run Fast Gene Set Enrichment Analysis
+# Tests whether genes in each pathway are randomly distributed in the ranked list
+# or concentrated at the top (upregulated) or bottom (downregulated)
+fgsea_results <- fgsea(
+  pathways = gene_sets_list,      # Gene sets to test
+  stats = gene_ranks,             # Ranked gene list
+  eps = 0.0,                      # Precision for p-value estimation (0 = exact)
+  minSize = 15,                   # Minimum genes per pathway
+  maxSize = 500                   # Maximum genes per pathway
+)
+
+# Filter and format results
+gsea <- fgsea_results |> 
+  arrange(padj) |>                      # Sort by adjusted p-value
+  filter(padj < 0.05) |>                # Keep only significant pathways
+  select(-leadingEdge) |>                # Remove gene list column for display
+  arrange(desc(NES))                     # Sort by normalized enrichment score
+# Display results table
+kbl(gsea |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+Gene Set Enrichment Analysis (GSEA) of the complete ranked gene list, excluding mitochondrial and ribosomal genes, identified enrichment of the mitochondrial respiratory chain complex assembly in the liver upon *ApoE2* switch (NES = 2.056, padj = 0.018). 
+
+
+```{r}
+# Plot top enriched pathway
+top_pathway <- gsea$pathway[1]  
+plotEnrichment(
+  pathway = gene_sets_list[[top_pathway]], 
+  stats = gene_ranks
+) + 
+  labs(
+    title =  top_pathway,
+    x = "Ranked Genes",
+    y = "Enrichment Score (ES)"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+leading_edge <- fgsea_results |> 
+  filter(pathway == top_pathway) |>
+  pull(leadingEdge) |> 
+  unlist()
+```
+
+There are `r length(leading_edge)` leading-edge genes driving the enrichment of the `r  top_pathway`, including `r paste(head(leading_edge,10), collapse = ", ")`, among others._All these genes are nuclear-encoded mitochondrial proteins involved in electron transport and ATP synthesis_ and are upregulated in liver following ApoE4→ApoE2 conversion.
+
+## Brain
+
+### Gene Set Enrichment Analysis (GSEA)
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+
+#################################################################
+### Mouse Gene Sets from MSigDB #################################
+### https://www.gsea-msigdb.org/gsea/msigdb/mouse/genesets.jsp ##
+#################################################################
+
+set.seed(42)  # Set seed for reproducibility
+
+# Load complete differential expression results (all genes, not just significant)
+brain <- read_csv("data/results_brain_1.csv")|> 
+  filter(str_starts(gene,"mt-|Mt-", negate = T)) |>  # Remove mitochondrial genes
+  filter(str_starts(gene,"Rps|Rpl",negate = T))  # Remove ribosomal genes
+
+
+# Create ranked gene list based on log2 fold change
+# GSEA uses the ranking of ALL genes, not just significant ones
+gene_ranks <- brain$log2FoldChange
+names(gene_ranks) <- brain$gene
+gene_ranks <- sort(gene_ranks, decreasing = TRUE)  # Sort high to low
+
+# Retrieve Gene Ontology Biological Process gene sets from MSigDB
+# MSigDB Collection M5 = ontology gene sets
+# Subcollection BP = Biological Process
+gene_sets <- msigdbr(
+  species = "Mus musculus",      # Mouse
+  db_species = "MM",              # Mouse species code
+  collection = "M5",              # GO gene sets
+  subcollection = "BP"            # Biological Process ontology
+)
+
+# Convert to list format required by fgsea
+# Each element = one gene set (pathway) with its member genes
+gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
+
+# Run Fast Gene Set Enrichment Analysis
+# Tests whether genes in each pathway are randomly distributed in the ranked list
+# or concentrated at the top (upregulated) or bottom (downregulated)
+fgsea_results <- fgsea(
+  pathways = gene_sets_list,      # Gene sets to test
+  stats = gene_ranks,             # Ranked gene list
+  eps = 0.0,                      # Precision for p-value estimation (0 = exact)
+  minSize = 15,                   # Minimum genes per pathway
+  maxSize = 500                   # Maximum genes per pathway
+)
+
+
+
+# Filter and format results
+gsea <- fgsea_results |> 
+  arrange(padj) |>                      # Sort by adjusted p-value
+  filter(padj < 0.05) |>                # Keep only significant pathways
+  arrange(desc(NES))                     # Sort by normalized enrichment score
+
+
+
+# Display results table
+kbl(gsea |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+GSEA of brain tissue revealed `r nrow(gsea)` significantly enriched pathways.
+
+#### Reducing Redundant Pathways with `collapsePathways`
+
+Because many pathways shared the same leading-edge genes, we used the `collapsePathways` function from the `fgsea` package to remove redundancy and isolate distinct biological themes. This method groups pathways with overlapping gene sets and keeps only the most significantly enriched representative from each cluster, ensuring that the analysis reflects independent biological processes rather than repetitive signals.
+
+
+```{r}
+
+# Subset gene_sets_list to only include significant pathways
+gene_sets_significant <- gene_sets_list[gsea$pathway]
+
+
+# Step 3: Run collapsePathways
+# This identifies redundant pathways based on leading edge overlap
+collapsed <- collapsePathways(
+  fgseaRes = fgsea_results |> filter(padj<0.05),     # Your fgsea results (filtered)
+  pathways = gene_sets_significant,     # Gene sets (filtered to significant)
+  pval.threshold = 0.01,               # P-value threshold for significance
+  stats = gene_ranks                    # Same ranked gene list used in fgsea
+)
+
+# Step 4: Extract the main (representative) pathways
+main_pathways <- collapsed$mainPathways
+
+# Step 5: Filter your results to keep only main pathways
+gsea_collapsed <- fgsea_results |> 
+  filter(padj<0.05) |>
+  filter(pathway %in% main_pathways) |>
+  arrange(desc(NES))
+
+
+# Display results table
+kbl(gsea_collapsed |> select(pathway, NES, padj, size),
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+```
+
+This analysis identified `r nrow(gsea_collapsed)` representative pathways that summarize the main biological processes affected by hepatic *ApoE2* expression. The refined pathway set highlighted significant changes in chromatin organization, lipid metabolism, synaptic remodeling, and mitochondrial function in brain tissue. 
+
+Notably, genes related to oxidative phosphorylation showed reduced expression in the brain, in contrast to their increase in the liver, indicating a distinct metabolic adjustment driven by altered *ApoE* signaling.
+
+
+
+```{r}
+# Plot top downregulated pathway
+down_pathway <- gsea_collapsed |> 
+  arrange(desc(NES)) |>
+  slice_tail(n=1) |>
+  pull(pathway)  
+
+# plot downregulated pathway
+plotEnrichment(
+  pathway = gene_sets_list[[down_pathway]], 
+  stats = gene_ranks
+) + 
+  labs(
+    title =  down_pathway,
+    x = "Ranked Genes",
+    y = "Enrichment Score (ES)"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+leading_edge_brain <- fgsea_results |> 
+  filter(pathway == down_pathway) |>
+  pull(leadingEdge) |> 
+  unlist()
+```
+
+There are `r length(leading_edge_brain)` leading-edge genes driving the enrichment of the `r  top_pathway`, including `r paste(head(leading_edge_brain,10), collapse = ", ")`, among others._All these genes encode mitochondrial proteins involved in electron transport and ATP synthesis_ and are downregulated in the brain following ApoE4→ApoE2 conversion.
+
+## Common Leading-Edge Genes in Liver and Brain
+
+Leading-edge analysis revealed several mitochondrial genes as main contributors to pathway enrichment in both liver and brain. To pinpoint shared molecular mechanisms underlying the effects of ApoE isoform conversion, we compared the overlapping leading-edge genes between the two tissues.
+
+```{r}
+common_genes <- intersect(leading_edge_brain, leading_edge)
+```
+
+This analysis identified `r length(common_genes)` mitochondrial genes commonly altered in both liver and brain following ApoE4→ApoE2 conversion: `r paste(common_genes, collapse = ", ")`
+
+```{r}
+liver_common_genes <- liver |> 
+  filter(gene %in% common_genes) |> 
+  select(gene, log2FoldChange, padj) |> 
+  mutate(tissue = "liver",.before = 1)
+
+brain_common_genes <- brain |> 
+  filter(gene %in% common_genes) |> 
+  select(gene, log2FoldChange, padj) |> 
+  mutate(tissue = "brain",.before = 1)
+
+common_genes_table <- bind_rows(liver_common_genes, brain_common_genes) |> 
+  arrange(gene, tissue)
+# Display results table
+kbl(common_genes_table,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+```
+
+These genes showed opposite patterns of regulation, increasing in the liver while decreasing in the brain. This contrast indicates that hepatic *ApoE2* expression influences mitochondrial function in a tissue-specific manner, likely shaping the broader metabolic adjustments observed in this model.
+
+
+## Analysis of Brain metabolic Genes
+
+To understand how hepatic *ApoE2* expression influences __brain__ energy metabolism, we analyzed genes involved in glucose transport, glycolysis, lactate shuttling, glycogen turnover, and mitochondrial function. Most genes in these pathways showed modest but consistent shifts, revealing a coordinated metabolic adjustment rather than isolated changes.
+
+`log2FoldChange` indicates differential expression in brain following hepatic ApoE4→ApoE2 conversion (i.e., ApoE2 effect).
+
+### Glycolysis Core Genes
+
+Several glycolytic enzymes, including *Aldoa*, *Pgk1*, *Eno1*, *Ldha*, and *Aldoc*, showed reduced expression, suggesting a slower glycolytic flux. In contrast, *Hk1* increased, indicating stronger glucose trapping within cells. Together, these changes suggest a transition from rapid anaerobic glycolysis toward more regulated and efficient glucose utilization.
+
+
+```{r}
+glycolysis_core <- c(
+  "Hk1", "Hk2", "Hk3",                    # Hexokinase isoforms
+  "Gck",                                   # Glucokinase
+  "Pfkl", "Pfkm", "Pfkp",                 # Phosphofructokinase isoforms
+  "Aldoa", "Aldob", "Aldoc",              # Aldolase isoforms
+  "Gapdh",                                 # Glyceraldehyde-3-phosphate dehydrogenase
+  "Pgk1", "Pgk2",                         # Phosphoglycerate kinase
+  "Pgam1", "Pgam2",                       # Phosphoglycerate mutase
+  "Eno1", "Eno2", "Eno3",                 # Enolase isoforms
+  "Pklr", "Pkm",                          # Pyruvate kinase
+  "Ldha", "Ldhb"                          # Lactate dehydrogenase
+)
+
+glyco_core <- brain |> 
+  filter(gene %in% glycolysis_core) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+
+kbl(glyco_core,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+### Glucose Transporter Genes
+
+
+Among glucose transporter genes, *Slc2a1*, *Slc2a6*, and *Slc2a8* showed reduced expression in brain tissue following hepatic *ApoE4→ApoE2* conversion, while *Slc2a3* displayed a mild increase. Other transporters, including *Slc2a4*, *Slc5a1*, and *Slc2a2*, did not show significant changes.
+
+
+```{r}
+glucose_transporters <- c(
+  "Slc2a1",   # GLUT1 - BBB and astrocytes
+  "Slc2a3",   # GLUT3 - neurons
+  "Slc2a4",   # GLUT4 - insulin-regulated
+  "Slc2a2",   # GLUT2 - glucose sensor
+  "Slc2a6",   # GLUT6 - brain-enriched
+  "Slc2a8",   # GLUT8 - hippocampal
+  "Slc5a1"   # SGLT1 - sodium-glucose cotransporter
+)
+
+glut <- brain |> 
+  filter(gene %in% glucose_transporters) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+
+kbl(glut,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+### Pentose Phosphate Pathway Genes
+
+
+Within the pentose phosphate pathway, *Tkt* showed decreased expression in brain tissue following hepatic *ApoE4→ApoE2* conversion. The remaining genes analyzed, *Rpia*, *Pgd*, and *Rpe*, did not display significant expression changes.
+
+
+
+```{r}
+pentose_phosphate_pathway <- c(
+  "G6pd",           # Glucose-6-phosphate dehydrogenase
+  "Pgd",            # 6-Phosphogluconate dehydrogenase
+  "Tkt",            # Transketolase
+  "Tktl1", "Tktl2", # Transketolase-like isoforms
+  "Rpia",           # Ribose-5-phosphate isomerase A
+  "Rpe"             # Ribulose-5-phosphate 3-epimerase
+)
+ppp <- brain |> 
+  filter(gene %in% pentose_phosphate_pathway) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+
+kbl(ppp,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+### Pyruvate metabolism Genes
+Lower *Pdk2* and higher *Pdp1* and *Pdp2* expression reopen the pyruvate dehydrogenase complex, enabling glucose-derived pyruvate to enter the TCA cycle and support oxidative metabolism.
+
+
+```{r}
+pyruvate_metabolism <- c(
+  "Pdhx",                    # PDH complex X component
+  "Pdha1", "Pdha2",          # Pyruvate dehydrogenase E1-α
+  "Pdhb",                    # Pyruvate dehydrogenase E1-β
+  "Dlat",                    # Dihydrolipoamide acetyltransferase (E2)
+  "Dld",                     # Dihydrolipoamide dehydrogenase (E3)
+  "Pdk1", "Pdk2", "Pdk3", "Pdk4",  # Pyruvate dehydrogenase kinases
+  "Pdp1", "Pdp2",            # Pyruvate dehydrogenase phosphatases
+  "Pc",                      # Pyruvate carboxylase
+  "Pck1", "Pck2"             # PEPCK (gluconeogenic capacity)
+)
+
+pyr <- brain |> 
+  filter(gene %in% pyruvate_metabolism) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+
+kbl(pyr,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+### Lactate Transporter Genes
+
+Lactate transporter genes reflected a rebalancing of the astrocyte–neuron metabolic coupling. The reduction of *Slc16a3* (MCT4) and the increase of *Slc16a7* (MCT2) suggest less lactate export from astrocytes and greater neuronal uptake, restoring a healthy lactate shuttle.
+
+
+```{r}
+lactate_transport <- c(
+  "Slc16a1",   # MCT1 - bidirectional lactate/pyruvate transport
+  "Slc16a7",   # MCT2 - lactate importer (neuronal)
+  "Slc16a8",   # MCT3 - primarily epithelial
+  "Slc16a3",   # MCT4 - lactate exporter (astrocytic)
+  "Slc16a10", "Slc16a11", "Slc16a13", "Slc16a14"  # Alternative MCT isoforms
+)
+
+lactate_trans <- brain |> 
+  filter(gene %in% lactate_transport) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+
+kbl(lactate_trans,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+### Glycogen Metabolism Genes
+
+Regulators of glycogen metabolism, such as *Pygm*, *Agl*, and *Phka2*, also adjusted in line with this more stable metabolic state, showing decreased mobilization of glycogen stores. 
+
+
+```{r}
+glycogen_metabolism <- c(
+  "Gys1", "Gys2",            # Glycogen synthase isoforms
+  "Gyg",                     # Glycogenin (primer)
+  "Phka1", "Phka2",          # Phosphorylase kinase α subunits
+  "Phkg1",                   # Phosphorylase kinase γ subunit
+  "Pygl", "Pygb", "Pygm",    # Phosphorylase isoforms (liver, brain, muscle)
+  "Gbe1",                    # Branching enzyme
+  "Aga",                     # Acid-α-glucosidase
+  "Agl"                      # Debranching enzyme
+)
+
+glycogen <- brain |> 
+  filter(gene %in% glycogen_metabolism) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+kbl(glycogen,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+```
+
+### Metabolic Regulators
+
+### 11.3.7 Metabolic Regulators
+
+Several metabolic regulators changed expression in brain tissue following hepatic *ApoE4→ApoE2* conversion. *Insr*, *Gsk3b*, *Prkaa2*, *Pik3ca*, *Akt3*, *Irs1*, *Pik3cb*, and *Prkaa1* were upregulated, while *Akt1*, *Prkag1*, *Akt2*, and *Rheb* were downregulated. __*Plin2* also decreased in expression__. Other genes, including *Mtor*, *Irs2*, *Prkab1*, *Stk11*, *Prkag2*, *Prkab2*, and *Gsk3a*, showed minor or nonsignificant changes.
+
+
+```{r}
+metabolic_regulators <- c(
+  "Prkaa1", "Prkaa2",        # AMPK α subunits
+  "Prkab1", "Prkab2",        # AMPK β subunits
+  "Prkag1", "Prkag2", "Prkag3",  # AMPK γ subunits
+  "Akt1", "Akt2", "Akt3",    # Protein kinase B isoforms
+  "Insr",                    # Insulin receptor
+  "Irs1", "Irs2",            # Insulin receptor substrates
+  "Pik3ca", "Pik3cb",        # Phosphoinositide 3-kinase catalytic subunits
+  "Gsk3a", "Gsk3b",          # Glycogen synthase kinase 3
+  "Mtor",                    # Mechanistic target of rapamycin
+  "Rheb",                    # Ras homolog enriched in brain
+  "Depdc5",                  # GATOR1 component
+  "Sestrin2",                # Leucine sensor
+  "Stk11",                    # LKB1 (AMPK activator)
+  "Plin2"
+)
+
+regulators <- brain |> 
+  filter(gene %in% metabolic_regulators) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+kbl(regulators,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+```
+
+### Mitochondrial Transport Genes
+
+Mitochondrial transporter genes (*Mpc1*, *Mpc2*, *Slc25a1*, *Slc25a10*) declined, indicating lower demand for emergency substrate import.
+
+
+```{r}
+mitochondrial_transport <- c(
+  "Slc25a1",    # Citrate transporter
+  "Slc25a10",   # Dicarboxylate transporter
+  "Slc25a11",   # α-Ketoglutarate transporter
+  "Mpc1", "Mpc2" # Mitochondrial pyruvate carriers
+)
+mito_transport <- brain |> 
+  filter(gene %in% mitochondrial_transport) |> 
+  select(gene, log2FoldChange, padj) |> 
+  arrange(padj)
+kbl(mito_transport,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+```
+
+### All metabolic pathways (only significant genes )
+
+This section lists all genes with __significant expression changes__ across major metabolic pathways in brain tissue after hepatic ApoE4→ApoE2 conversion.
+
+```{r}
+brain_metabolism <- bind_rows(list (
+  glyco_core = glyco_core,
+  glucose_transporters = glut,
+  pentose_phosphate_pathway = ppp,
+  pyruvate_metabolism = pyr,
+  lactate_transport =lactate_trans,
+  glycogen_metabolism = glycogen,
+  metabolic_regulators = regulators,
+  mitochondrial_transport = mito_transport),
+          .id = "id") |> 
+            filter (padj < 0.05) |> 
+            arrange(id, padj)
+
+kbl(brain_metabolism,
+  digits = 3) |>
+  kable_styling(full_width = FALSE, "striped")
+
+write_csv(brain_metabolism, "data/brain_metabolic_genes_ApoE2vsE4.csv")
+```
+
+
+The data show that the *ApoE4* mouse brain lives under chronic metabolic stress, a condition reversed by hepatic *ApoE2* expression. The *ApoE4* state is marked by glucose hypometabolism, which forces astrocytes to accumulate small lipid droplets stabilized by high *Plin2* expression. This is not a resting phase but an inefficient, oxygen-hungry state where fatty acids are oxidized incompletely, producing metabolic intermediates [@farmer2019]. An accompanying rise in *Slc2a1*, *Slc2a6*, *Slc2a8*, *Mpc1*, *Mpc2*, *Slc25a1*, and *Slc25a10* may reflect a failed attempt to compensate for the energy shortage. Hepatic *ApoE2* expression restores balance, normalizing these transport systems.
+
+This correction involves a deeper reprogramming of glucose metabolism. In *ApoE4* brains, glycolysis runs fast but inefficiently, shunting pyruvate to lactate through *Ldha* and the astrocytic exporter *Slc16a3* (MCT4). With hepatic *ApoE2*, *Hk1* rises, trapping glucose in cells, while glycolytic enzymes such as *Aldoa*, *Pgk1*, and *Eno1* fall. At the same time, *Pdk2* declines and *Pdp1* and *Pdp2* increase, reopening the pyruvate dehydrogenase complex and steering metabolism toward aerobic respiration. This shift calms glycolytic activity and reduces glycogen breakdown, shown by lower *Pygm* expression.
+
+The lactate shuttle also resets. Astrocytic lactate export drops with reduced *Ldha* and *Slc16a3*, while neuronal uptake improves through *Slc16a7* (MCT2). The fall in *Tkt* suggests that oxidative stress decreases as the pentose phosphate pathway relaxes.
+
+Finally, key regulators of energy balance respond. *Insr* and *Irs1* rise, restoring insulin sensitivity, while *Plin2* declines, signaling relief from lipid stress. The downregulation of oxidative phosphorylation genes confirms that the brain’s metabolism has cooled from a high-output, inefficient state to a steady, aerobic equilibrium. In sum, hepatic *ApoE2* expression resolves the metabolic strain of *ApoE4*, returning the brain to an efficient and balanced homeostasis.

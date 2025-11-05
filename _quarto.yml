@@ -22,6 +22,7 @@ book:
       - 20251028-comparison3analysis.qmd
       - 20251029-geneEnrichment_analysis.qmd
       - 20251103-geneEnrichment_analysis_noMitochondria.qmd
+      - 20251104-geneEnrichment_analysis_noMito_noRibo.qmd
     - references.qmd
 
 bibliography: references.bib

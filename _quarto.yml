@@ -10,6 +10,7 @@ book:
     - index.qmd
     - 20251020_methods.qmd
     - 20251021_APOEexp.qmd
+    - 20251106-Abeta.qmd
     - part: "__BULK mRNAseq ANALYSIS__"
       chapters:
       - 20251023-multiqc.qmd

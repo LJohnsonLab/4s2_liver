@@ -1,0 +1,75 @@
+---
+title: "Amyloid beta"
+date: today
+embed-resources: true
+execute: 
+  echo: false
+  warning: false
+  message: false   
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggpubr)
+library(patchwork)
+
+ab0 <- read_xlsx("data/MSD ELISA Results.xlsx")
+
+ab_long <- ab0 |> 
+    mutate(across(where(is.numeric), \(x) na_if(x, 0))) |>
+    pivot_longer(
+    cols = starts_with("Soluble brain") | starts_with("Insoluble brain") | starts_with("Plasma conc."),
+    names_to = c("group", ".value"),
+    names_pattern = "^(Soluble brain|Insoluble brain|Plasma conc\\.) .*(Ab\\d+)",
+    values_to = "concentration") |> 
+        mutate(Ab42.Ab40 = Ab42 / Ab40,
+        Ab42.Ab38 = Ab42 / Ab38)
+
+```
+
+```{r}
+gg_decor <- function(){
+  list(
+    geom_boxplot(outlier.shape = NA),
+    geom_point(aes(col = `Age Group`), position = position_dodge(width = 0.75),
+               size = 3, alpha = 0.6),
+    scale_fill_manual(values = c("#cc941f","#8e241d")),
+    scale_color_manual(values = c("#8e650dff","#6a110bff")),
+    stat_compare_means(aes(group = `Age Group`), method = "wilcox.test", 
+                        label = "p.format",vjust = 2),
+    labs(x = " "),
+    theme_minimal(),
+    theme(strip.text = element_text(size=12)),
+    facet_wrap(~group, scales = "free_y")
+  )
+}
+```
+
+```{r}
+#| fig-height: 7
+ab42 <- ggplot(ab_long, aes(x = `Injection Group`, y = Ab42, fill = `Age Group`)) +
+    gg_decor()
+
+ab40 <- ggplot(ab_long, aes(x = `Injection Group`, y = Ab40, fill = `Age Group`)) +
+    gg_decor()
+
+ab38 <- ggplot(ab_long, aes(x = `Injection Group`, y = Ab38, fill = `Age Group`)) +
+    gg_decor()
+
+ab42/ab40/ab38 + plot_annotation(title = "Amyloid beta concentrations",
+                        subtitle = "Measured by MSD ELISA")
+```
+
+
+```{r}
+ab42.ab40 <- ggplot(ab_long, aes(x = `Injection Group`, y = Ab42.Ab40, fill = `Age Group`)) +
+    gg_decor()
+
+ab42.ab38 <- ggplot(ab_long, aes(x = `Injection Group`, y = Ab42.Ab38, fill = `Age Group`)) +
+    gg_decor()
+
+ab42.ab40 / ab42.ab38 + plot_annotation(title = "Amyloid beta ratios",
+                        subtitle = "Measured by MSD ELISA")
+```

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>3&nbsp; RNAseq Data Processing and Quality Control – 4s2 in liver</title>
+<title>4&nbsp; RNAseq Data Processing and Quality Control – 4s2 in liver</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -31,7 +31,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
 <link href="./20251023-mrnaseq-qc_pca.html" rel="next">
-<link href="./20251021_APOEexp.html" rel="prev">
+<link href="./20251106-Abeta.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -82,7 +82,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><strong>BULK mRNAseq ANALYSIS</strong></a></li><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><strong>BULK mRNAseq ANALYSIS</strong></a></li><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -125,6 +125,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">human APOE expression</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./20251106-Abeta.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Amyloid beta</span></span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -137,7 +143,7 @@ ul.task-list li input[type="checkbox"] {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251023-multiqc.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></span></a>
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></span></a>
   </div>
 </li>
       </ul>
@@ -154,49 +160,49 @@ ul.task-list li input[type="checkbox"] {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251023-mrnaseq-qc_pca.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">PCA</span></span></a>
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">PCA</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251024-mrnaseq-switch_DE_analysis1.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Differential Expression Analysis I</span></span></a>
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Differential Expression Analysis I</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251024-mrnaseq-switch_DE_analysis2.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Differential Expression Analysis II</span></span></a>
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Differential Expression Analysis II</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251024-mrnaseq-switch_DE_analysis3.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Differential Expression Analysis III</span></span></a>
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Differential Expression Analysis III</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251028-comparison3analysis.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Comparison of Differential Expression Analysis Methods</span></span></a>
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Comparison of Differential Expression Analysis Methods</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251029-geneEnrichment_analysis.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Gene Enrichment Analysis</span></span></a>
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Gene Enrichment Analysis</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251103-geneEnrichment_analysis_noMitochondria.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Gene Enrichment Analysis II</span></span></a>
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Gene Enrichment Analysis II</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./20251104-geneEnrichment_analysis_noMito_noRibo.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Gene Enrichment Analysis III</span></span></a>
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Gene Enrichment Analysis III</span></span></a>
   </div>
 </li>
       </ul>
@@ -217,17 +223,17 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#nf-corernaseq-pipeline-execution" id="toc-nf-corernaseq-pipeline-execution" class="nav-link active" data-scroll-target="#nf-corernaseq-pipeline-execution"><span class="header-section-number">3.1</span> nf-core/rnaseq Pipeline Execution</a></li>
-  <li><a href="#results-summary" id="toc-results-summary" class="nav-link" data-scroll-target="#results-summary"><span class="header-section-number">3.2</span> Results Summary</a></li>
+  <li><a href="#nf-corernaseq-pipeline-execution" id="toc-nf-corernaseq-pipeline-execution" class="nav-link active" data-scroll-target="#nf-corernaseq-pipeline-execution"><span class="header-section-number">4.1</span> nf-core/rnaseq Pipeline Execution</a></li>
+  <li><a href="#results-summary" id="toc-results-summary" class="nav-link" data-scroll-target="#results-summary"><span class="header-section-number">4.2</span> Results Summary</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><strong>BULK mRNAseq ANALYSIS</strong></a></li><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><strong>BULK mRNAseq ANALYSIS</strong></a></li><li class="breadcrumb-item"><a href="./20251023-multiqc.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></h1>
+<h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">RNAseq Data Processing and Quality Control</span></h1>
 </div>
 
 
@@ -244,8 +250,8 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="nf-corernaseq-pipeline-execution" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="nf-corernaseq-pipeline-execution"><span class="header-section-number">3.1</span> nf-core/rnaseq Pipeline Execution</h2>
+<section id="nf-corernaseq-pipeline-execution" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="nf-corernaseq-pipeline-execution"><span class="header-section-number">4.1</span> nf-core/rnaseq Pipeline Execution</h2>
 <p>Raw paired-end RNA-seq reads (2 × 150 bp), produced by NOVOGENE, were processed using the <strong>nf-core/rnaseq</strong> pipeline (v3.19.0; Ewels <em>et al.</em>, 2020) executed with <strong>Nextflow v24.10.4</strong> (Di Tommaso <em>et al.</em>, 2017) under <strong>Singularity</strong> for full reproducibility on the Morgan Computing Core (University of Kentucky, UKY). The pipeline integrates widely used bioinformatics tools distributed through the Bioconda (Grüning <em>et al.</em>, 2018) and Biocontainers (da Veiga Leprevost <em>et al.</em>, 2017) frameworks.</p>
 <pre><code>nextflow run nf-core/rnaseq \
   --input sample_sheet_batch1_batch2.csv \
@@ -262,8 +268,8 @@ ul.task-list li input[type="checkbox"] {
 <p>Comprehensive multi-module quality control reports were aggregated with <strong>MultiQC v1.29</strong>, which compiled outputs from FastQC, Cutadapt, STAR, Salmon, Qualimap, and RSeQC.</p>
 <hr>
 </section>
-<section id="results-summary" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="results-summary"><span class="header-section-number">3.2</span> Results Summary</h2>
+<section id="results-summary" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="results-summary"><span class="header-section-number">4.2</span> Results Summary</h2>
 <p>A total of <strong>62 paired-end RNA-seq samples</strong> (31 liver and 31 brain) were successfully processed. Each library yielded <strong>20–90 million paired reads</strong> (mean ≈ 45 M).</p>
 <ul>
 <li><strong>Read quality:</strong> Mean Phred scores exceeded Q30 across all cycles, and &lt; 0.05 % adapter contamination remained after trimming.</li>
@@ -684,13 +690,13 @@ ul.task-list li input[type="checkbox"] {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./20251021_APOEexp.html" class="pagination-link" aria-label="human APOE expression">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">human APOE expression</span></span>
+      <a href="./20251106-Abeta.html" class="pagination-link" aria-label="Amyloid beta">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Amyloid beta</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
       <a href="./20251023-mrnaseq-qc_pca.html" class="pagination-link" aria-label="PCA">
-        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">PCA</span></span> <i class="bi bi-arrow-right-short"></i>
+        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">PCA</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
